@@ -147,7 +147,9 @@
         password: "",
         confirmPassword: "",
         terms: false,
-        privacy: false
+        privacy: false,
+        emailAvailable: null,
+        emailCheckStatus: ""
       },
       demographics: {
         age: "",
@@ -366,15 +368,29 @@
     }
 
     if (step === 5) {
+      var emailStatus = "";
+      if (state.account.email) {
+        if (state.account.emailCheckStatus === "checking") {
+          emailStatus = '<div class="col-span-full rounded-2xl border border-line bg-surface px-4 py-3 text-xs text-slateText">בודקים זמינות אימייל...</div>';
+        } else if (state.account.emailCheckStatus === "available") {
+          emailStatus = '<div class="col-span-full rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-xs text-success">האימייל פנוי לשימוש.</div>';
+        } else if (state.account.emailCheckStatus === "taken") {
+          emailStatus = '<div class="col-span-full rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-xs text-warning">האימייל כבר בשימוש. בחרו כתובת אחרת.</div>';
+        } else if (state.account.emailCheckStatus === "error") {
+          emailStatus = '<div class="col-span-full rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-xs text-warning">לא ניתן לבדוק זמינות אימייל כרגע.</div>';
+        }
+      }
+
       return '<section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><div class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]"><div><h2 class="text-3xl font-bold text-ink">שלב 5: פרטי חשבון והרשמה</h2><p class="mt-3 text-sm leading-7 text-slateText">כאן יוצרים את החשבון שישמור את התוצאות וההתראות. אין צורך היה להירשם לפני האשף.</p><div class="wizard-track-grid mt-6">' + [
         input("שם משתמש", "account.username", state.account.username),
         input("אימייל", "account.email", state.account.email, "email", { attrs: 'autocomplete="email"' }),
+        emailStatus,
         input("טלפון", "account.phone", state.account.phone, "tel", { attrs: 'autocomplete="tel"' }),
         input("סיסמה", "account.password", state.account.password, "password", { attrs: 'autocomplete="new-password"' }),
         input("אימות סיסמה", "account.confirmPassword", state.account.confirmPassword, "password", { attrs: 'autocomplete="new-password"' }),
         input("אני מאשר/ת את תנאי השימוש.", "account.terms", state.account.terms, "checkbox"),
         input("אני מאשר/ת את מדיניות הפרטיות.", "account.privacy", state.account.privacy, "checkbox")
-      ].join("") + '</div></div><div class="rounded-[28px] border border-line bg-surface p-6"><h3 class="text-2xl font-bold text-ink">מידע וולונטרי</h3><p class="mt-3 text-sm leading-7 text-slateText">שדות לא חובה שיסייעו להתאמה אישית בהמשך.</p><div class="wizard-track-grid mt-6">' + [
+      ].filter(Boolean).join("") + '</div></div><div class="rounded-[28px] border border-line bg-surface p-6"><h3 class="text-2xl font-bold text-ink">מידע וולונטרי</h3><p class="mt-3 text-sm leading-7 text-slateText">שדות לא חובה שיסייעו להתאמה אישית בהמשך.</p><div class="wizard-track-grid mt-6">' + [
         input("גיל", "demographics.age", state.demographics.age, "number", { attrs: 'min="18" max="120" step="1"' }),
         input("מגדר", "demographics.gender", state.demographics.gender, "select", {
           options: '<option value=""' + (!state.demographics.gender ? " selected" : "") + '>לא נבחר</option><option value="female"' + (state.demographics.gender === "female" ? " selected" : "") + '>אישה</option><option value="male"' + (state.demographics.gender === "male" ? " selected" : "") + '>גבר</option><option value="other"' + (state.demographics.gender === "other" ? " selected" : "") + '>אחר / מעדיף לא לציין</option>'
@@ -446,11 +462,15 @@
     }
 
     if (step === 5) {
+      var session = App.State.load().session || {};
       if (!state.account.username) {
         errors.push("יש להזין שם משתמש.");
       }
       if (!emailValid(state.account.email)) {
         errors.push("יש להזין כתובת אימייל תקינה.");
+      }
+      if (state.account.emailCheckStatus === "taken" && session.email !== state.account.email) {
+        errors.push("האימייל כבר בשימוש. בחרו כתובת אחרת.");
       }
       if (!phoneValid(state.account.phone)) {
         errors.push("יש להזין מספר טלפון תקין.");
@@ -480,6 +500,7 @@
     var wizardState = defaultWizardState();
     var currentStep = 1;
     var submitInProgress = false;
+    var emailCheckTimer;
 
     function persistDraft() {
       App.State.save({ onboarding: wizardState });
@@ -498,6 +519,40 @@
 
       normalizeTracksCollection(wizardState);
       persistDraft();
+    }
+
+    function scheduleEmailCheck(email) {
+      var session = App.State.load().session || {};
+      if (!email || !emailValid(email)) {
+        wizardState.account.emailCheckStatus = "";
+        wizardState.account.emailAvailable = null;
+        return;
+      }
+
+      if (session.email && session.email === email) {
+        wizardState.account.emailCheckStatus = "available";
+        wizardState.account.emailAvailable = true;
+        return;
+      }
+
+      wizardState.account.emailCheckStatus = "checking";
+      wizardState.account.emailAvailable = null;
+
+      if (emailCheckTimer) {
+        window.clearTimeout(emailCheckTimer);
+      }
+      emailCheckTimer = window.setTimeout(function () {
+        App.MockApi.checkEmailAvailability(email).then(function (response) {
+          wizardState.account.emailAvailable = !!response.available;
+          wizardState.account.emailCheckStatus = response.available ? "available" : "taken";
+          persistDraft();
+          render();
+        }).catch(function () {
+          wizardState.account.emailCheckStatus = "error";
+          persistDraft();
+          render();
+        });
+      }, 450);
     }
 
     function scrollWizardTop() {
@@ -520,9 +575,15 @@
     }
 
     render();
+    if (wizardState.account.email) {
+      scheduleEmailCheck(wizardState.account.email);
+    }
 
     $(root).on("change input", "[data-bind]", function () {
       syncInputs();
+      if ($(this).data("bind") === "account.email") {
+        scheduleEmailCheck($(this).val());
+      }
       if ($(this).data("bind").indexOf("tracks.") === 0 && /\.type$/.test($(this).data("bind"))) {
         render();
       }
@@ -581,6 +642,17 @@
       render([], "שומרים את התיק, יוצרים את החשבון ומכינים את סביבת העבודה האישית.");
       App.MockApi.submitOnboarding(wizardState).then(function (response) {
         submitInProgress = false;
+        if (response.status === "email_taken") {
+          wizardState.account.emailCheckStatus = "taken";
+          render(["האימייל כבר בשימוש. בחרו כתובת אחרת."]);
+          scrollWizardTop();
+          return;
+        }
+        if (response.status !== "success") {
+          render(["לא ניתן להשלים את השליחה כרגע. נסו שוב."]);
+          scrollWizardTop();
+          return;
+        }
         App.State.save({ onboarding: null });
         render([], "הנתונים נשמרו בהצלחה והחשבון נוצר. מעבירים אותך ללוח המחוונים.");
         window.setTimeout(function () {

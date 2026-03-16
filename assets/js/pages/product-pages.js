@@ -500,7 +500,6 @@
 
   App.Pages.alerts = function (root) {
     function renderAlerts(alertData, filter) {
-      var notifications = App.State.load().notifications;
       var filteredActive = alertData.active.filter(function (item) {
         return filter === "all" ? true : item.severity === filter;
       });
@@ -541,23 +540,6 @@
               key: "dismissed",
               label: "Dismissed",
               content: '<div class="space-y-4">' + alertData.dismissed.map(function (item) { return alertCard(item); }).join("") + "</div>"
-            },
-            {
-              key: "preferences",
-              label: "Notification preferences",
-              content: [
-                '<form id="notification-preferences" class="rounded-[28px] border border-line bg-white p-6 shadow-soft">',
-                '  <h3 class="text-2xl font-bold text-ink">העדפות משלוח</h3>',
-                '  <div class="mt-6 space-y-4 text-sm text-slateText">',
-                checkboxField("email", notifications.email, "אימייל"),
-                checkboxField("sms", notifications.sms, "SMS"),
-                checkboxField("weeklyDigest", notifications.weeklyDigest, "סיכום שבועי"),
-                checkboxField("severeOnly", notifications.severeOnly, "התראות חמורות בלבד"),
-                "  </div>",
-                '  <div id="notification-state" class="mt-4 text-sm"></div>',
-                '  <button type="submit" class="mt-6 rounded-full bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700">שמירת העדפות</button>',
-                "</form>"
-              ].join("")
             }
           ]
         })
@@ -578,18 +560,6 @@
       $(root).off("click.dismiss").on("click.dismiss", "[data-dismiss-alert]", function () {
         App.MockApi.dismissAlert($(this).data("dismiss-alert")).then(function (nextData) {
           renderAlerts(nextData, filter);
-        });
-      });
-
-      $(root).off("submit.notifications").on("submit.notifications", "#notification-preferences", function (event) {
-        event.preventDefault();
-        App.MockApi.updateNotifications({
-          email: $(this).find('[name="email"]').is(":checked"),
-          sms: $(this).find('[name="sms"]').is(":checked"),
-          weeklyDigest: $(this).find('[name="weeklyDigest"]').is(":checked"),
-          severeOnly: $(this).find('[name="severeOnly"]').is(":checked")
-        }).then(function () {
-          $("#notification-state").html('<div class="rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-success">העדפות ההתראה נשמרו.</div>');
         });
       });
     }

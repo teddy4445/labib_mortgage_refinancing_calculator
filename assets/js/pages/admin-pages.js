@@ -10,7 +10,7 @@
       '    <p class="text-xs font-bold uppercase tracking-[0.22em] text-slateText">admin access</p>',
       '    <h1 class="mt-4 text-4xl font-extrabold leading-tight text-ink">כניסה לאזור התפעול</h1>',
       '    <p class="mt-4 text-base leading-8 text-slateText">מסך זה מיועד לניהול פעילות האתר, מעקב שימוש באשף, בקשות עזרה, סטטוס מקורות הנתונים וטבלת המשתמשים.</p>',
-      '    <div class="mt-6 grid gap-3">',
+      '    <div class="mt-6 hidden">',
       '      <div class="rounded-[24px] border border-line bg-surface px-5 py-4 text-sm leading-7 text-slateText">בדמו זה מספיק להשתמש בסיסמה Secure123! כדי לעבור לדשבורד.</div>',
       '      <div class="rounded-[24px] border border-line bg-surface px-5 py-4 text-sm leading-7 text-slateText">הדשבורד נשאר בעמוד יחיד, ללא ניווט פנימי וללא אזורים נפרדים.</div>',
       "    </div>",
@@ -26,11 +26,12 @@
   }
 
   function adminStatCard(item) {
+    var change = item.change ? '<p class="mt-2 text-sm font-semibold text-accent">' + item.change + "</p>" : "";
     return [
       '<article class="rounded-[24px] border border-line bg-white p-5 shadow-soft">',
       '  <p class="text-sm font-semibold text-slateText">' + item.label + "</p>",
       '  <p class="mt-3 text-3xl font-extrabold text-ink">' + item.value + "</p>",
-      '  <p class="mt-2 text-sm font-semibold text-accent">' + item.change + "</p>",
+      change,
       "</article>"
     ].join("");
   }
@@ -50,6 +51,20 @@
       });
     }
     return items;
+  }
+
+  function seriesFromApi(items) {
+    if (!items || !items.length) {
+      return [];
+    }
+    return items.map(function (item) {
+      var date = new Date(item.date);
+      var label = new Intl.DateTimeFormat(App.I18n.meta().locale, { day: "2-digit", month: "2-digit" }).format(date);
+      return {
+        label: label,
+        value: item.value
+      };
+    });
   }
 
   function axisTicks(max) {
@@ -97,13 +112,32 @@
   }
 
   function sourceTone(status) {
-    if (status.indexOf("תקין") >= 0) {
+    if (!status) {
+      return "neutral";
+    }
+    if (status === "healthy" || status.indexOf("תקין") >= 0) {
       return "success";
     }
-    if (status.indexOf("איחור") >= 0) {
+    if (status === "delayed" || status.indexOf("איחור") >= 0) {
       return "warning";
     }
+    if (status === "failed") {
+      return "high";
+    }
     return "neutral";
+  }
+
+  function sourceStatusLabel(status) {
+    if (status === "healthy") {
+      return "תקין";
+    }
+    if (status === "delayed") {
+      return "באיחור";
+    }
+    if (status === "failed") {
+      return "כשל";
+    }
+    return status || "לא זמין";
   }
 
   App.Pages["admin-login"] = function (root) {
@@ -122,6 +156,11 @@
           $("#admin-login-errors").html('<div class="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-danger">הכניסה נכשלה. בדקו את פרטי הזיהוי.</div>');
           return;
         }
+        if (response.role !== "admin") {
+          App.State.save({ session: { authenticated: false, role: "user", email: null, userId: null } });
+          $("#admin-login-errors").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">לחשבון הזה אין הרשאת אדמין.</div>');
+          return;
+        }
 
         $("#admin-login-state").html('<div class="mb-5 rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-success">הכניסה אושרה. מעבירים אותך לדשבורד האדמין.</div>');
         window.setTimeout(function () {
@@ -133,14 +172,31 @@
 
   App.Pages["admin-dashboard"] = function (root) {
     App.MockApi.getAdmin().then(function (admin) {
-      var wizardSeries = buildSeries(18, 22, 4);
-      var helpSeries = buildSeries(4, 10, 2);
-      var users = admin.users.rows.map(function (row, index) {
-        return $.extend({
-          email: ["yael@example.com", "amir@example.com", "barak-family@example.com"][index] || ("user" + index + "@example.com"),
-          phone: ["050-555-0182", "052-431-2201", "054-778-4410"][index] || "050-000-0000",
-          locked: false
-        }, row);
+      var overview = admin && admin.metrics ? admin : null;
+      var metrics = overview ? overview.metrics : (admin.dashboard && admin.dashboard.stats) || [];
+      var wizardSeries = overview ? seriesFromApi(overview.wizard_usage_last_30_days) : [];
+      var helpSeries = overview ? seriesFromApi(overview.help_requests_last_30_days) : [];
+      var dataSources = overview ? overview.data_sources : (admin.marketData && admin.marketData.sources) || [];
+      var users = overview ? overview.users : (admin.users && admin.users.rows) || [];
+
+      if (!wizardSeries.length) {
+        wizardSeries = buildSeries(18, 22, 4);
+      }
+      if (!helpSeries.length) {
+        helpSeries = buildSeries(4, 10, 2);
+      }
+
+      users = users.map(function (row) {
+        return {
+          id: row.id,
+          username: row.username || row.name,
+          email: row.email,
+          phone: row.phone_number || row.phone,
+          status: row.status,
+          role: row.role,
+          created_at: row.created_at,
+          locked: row.status === "locked" || row.locked
+        };
       });
       var searchTerm = "";
       var statusFilter = "all";
@@ -148,41 +204,92 @@
       function filteredUsers() {
         return users.filter(function (row) {
           var statusMatch = statusFilter === "all" ? true : row.status === statusFilter;
-          var haystack = [row.name, row.city, row.email, row.phone, row.portfolio].join(" ").toLowerCase();
+          var haystack = [row.username, row.email, row.phone].join(" ").toLowerCase();
           var searchMatch = !searchTerm || haystack.indexOf(searchTerm.toLowerCase()) >= 0;
           return statusMatch && searchMatch;
         });
       }
 
+      function statusLabel(status) {
+        if (status === "active") {
+          return "פעיל";
+        }
+        if (status === "pending") {
+          return "בהמתנה";
+        }
+        if (status === "locked") {
+          return "נעול";
+        }
+        return status || "לא זמין";
+      }
+
+      function statusTone(status) {
+        if (status === "active") {
+          return "success";
+        }
+        if (status === "pending") {
+          return "warning";
+        }
+        if (status === "locked") {
+          return "high";
+        }
+        return "neutral";
+      }
+
+      function roleLabel(role) {
+        return role === "admin" ? "אדמין" : "משתמש";
+      }
+
+      function lastUpdateTime() {
+        if (!dataSources || !dataSources.length) {
+          return "לא זמין";
+        }
+        var latest = null;
+        dataSources.forEach(function (source) {
+          if (source.last_success_at) {
+            var date = new Date(source.last_success_at);
+            if (!latest || date > latest) {
+              latest = date;
+            }
+          }
+        });
+        return latest ? App.Format.shortDateTime(latest.toISOString()) : "לא זמין";
+      }
+
       function renderAdminPage() {
         root.innerHTML = [
           '<section class="mb-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><h1 class="text-3xl font-extrabold text-ink">תפעול ומעקב אתר</h1><p class="mt-3 text-sm leading-7 text-slateText">עמוד אחד שמרכז פעילות שוטפת, שימוש באשף, בקשות עזרה, סטטוס מקורות נתונים וטבלת משתמשים.</p></section>',
-          '<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">' + admin.dashboard.stats.map(adminStatCard).join("") + "</section>",
+          '<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">' + (metrics.length ? metrics.map(adminStatCard).join("") : "") + "</section>",
           '<section class="mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="grid gap-6 xl:grid-cols-2">' +
             lineChart("שימוש באשף ב-30 הימים האחרונים", "מספר ההפעלות היומי של האשף החינמי.", wizardSeries, "#123b6b", "#123b6b") +
             lineChart("בקשות עזרה ב-30 הימים האחרונים", "מספר פניות שנוצרו לאחר אישור עניין או בקשת עזרה.", helpSeries, "#d97706", "#d97706") +
           "</div></section>",
-          '<section class="mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="grid gap-6 lg:grid-cols-[0.8fr,1.2fr] lg:items-start"><div><h2 class="text-2xl font-bold text-ink">מקורות נתונים</h2><p class="mt-3 text-sm leading-7 text-slateText">סטטוס עדכון אחרון לכל מקור שוק שמזין את ההמלצות.</p><div class="mt-5 rounded-[24px] border border-line bg-surface p-5"><p class="text-sm font-semibold text-slateText">עדכון מערכת אחרון</p><p class="mt-3 text-3xl font-extrabold text-ink">2026-03-13 06:45</p><div class="mt-3">' + App.UI.badge("success", "תקין") + "</div></div></div>" +
+          '<section class="mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="grid gap-6 lg:grid-cols-[0.8fr,1.2fr] lg:items-start"><div><h2 class="text-2xl font-bold text-ink">מקורות נתונים</h2><p class="mt-3 text-sm leading-7 text-slateText">סטטוס עדכון אחרון לכל מקור שוק שמזין את ההמלצות.</p><div class="mt-5 rounded-[24px] border border-line bg-surface p-5"><p class="text-sm font-semibold text-slateText">עדכון מערכת אחרון</p><p class="mt-3 text-3xl font-extrabold text-ink">' + lastUpdateTime() + '</p><div class="mt-3">' + App.UI.badge("success", "תקין") + "</div></div></div>" +
             App.UI.table({
               columns: [
                 { label: "מקור", key: "source" },
-                { label: "סטטוס", render: function (row) { return App.UI.badge(sourceTone(row.status), row.status); } },
+                { label: "סטטוס", render: function (row) { return App.UI.badge(sourceTone(row.status), sourceStatusLabel(row.status)); } },
                 { label: "עודכן לאחרונה", key: "updated" }
               ],
-              rows: admin.marketData.sources
+              rows: dataSources.map(function (source) {
+                return {
+                  source: source.display_name || source.source,
+                  status: source.status,
+                  updated: source.last_success_at ? App.Format.shortDateTime(source.last_success_at) : "לא זמין"
+                };
+              })
             }) +
           "</div></section>",
-          '<section class="mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><h2 class="text-2xl font-bold text-ink">טבלת משתמשים</h2><p class="mt-3 text-sm leading-7 text-slateText">חיפוש, סינון ונעילת משתמשים מהעמוד הראשי.</p></div><div class="grid gap-3 sm:grid-cols-2"><label class="block"><span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slateText">חיפוש</span><input type="search" data-admin-search class="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink" placeholder="שם, אימייל, טלפון, עיר" value="' + App.Helpers.escapeHtml(searchTerm) + '" /></label><label class="block"><span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slateText">סטטוס</span><select data-admin-status class="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink"><option value="all"' + (statusFilter === "all" ? " selected" : "") + '>הכל</option><option value="פעיל"' + (statusFilter === "פעיל" ? " selected" : "") + '>פעיל</option><option value="בהמתנה"' + (statusFilter === "בהמתנה" ? " selected" : "") + '>בהמתנה</option><option value="נעול"' + (statusFilter === "נעול" ? " selected" : "") + '>נעול</option></select></label></div></div><div class="mt-5">' +
+          '<section class="mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><h2 class="text-2xl font-bold text-ink">טבלת משתמשים</h2><p class="mt-3 text-sm leading-7 text-slateText">חיפוש, סינון ונעילת משתמשים מהעמוד הראשי.</p></div><div class="grid gap-3 sm:grid-cols-2"><label class="block"><span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slateText">חיפוש</span><input type="search" data-admin-search class="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink" placeholder="שם, אימייל, טלפון" value="' + App.Helpers.escapeHtml(searchTerm) + '" /></label><label class="block"><span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slateText">סטטוס</span><select data-admin-status class="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink"><option value="all"' + (statusFilter === "all" ? " selected" : "") + '>הכל</option><option value="active"' + (statusFilter === "active" ? " selected" : "") + '>פעיל</option><option value="pending"' + (statusFilter === "pending" ? " selected" : "") + '>בהמתנה</option><option value="locked"' + (statusFilter === "locked" ? " selected" : "") + '>נעול</option></select></label></div></div><div class="mt-5">' +
             App.UI.table({
               columns: [
-                { label: "שם", key: "name" },
+                { label: "שם משתמש", key: "username" },
                 { label: "אימייל", key: "email" },
                 { label: "טלפון", key: "phone" },
-                { label: "עיר", key: "city" },
-                { label: "תיק", key: "portfolio" },
-                { label: "סטטוס", render: function (row) { return row.locked ? App.UI.badge("danger", "נעול") : App.UI.badge(row.status === "פעיל" ? "success" : "warning", row.status); } },
-                { label: "נראה לאחרונה", key: "lastSeen" },
-                { label: "פעולה", render: function (row) { return '<button type="button" class="rounded-full border border-line px-4 py-2 text-xs font-semibold text-ink hover:border-brand-600 hover:text-brand-600" data-lock-user="' + row.email + '">' + (row.locked ? "שחרור" : "נעילה") + "</button>"; } }
+                { label: "סטטוס", render: function (row) { return App.UI.badge(statusTone(row.status), statusLabel(row.status)); } },
+                { label: "תפקיד", render: function (row) { return roleLabel(row.role); } },
+                { label: "נוצר", render: function (row) { return row.created_at ? App.Format.shortDateTime(row.created_at) : "לא זמין"; } },
+                { label: "פעולה", render: function (row) { return row.locked ? '<span class="text-xs font-semibold text-slateText">נעול</span>' : '<button type="button" class="rounded-full border border-line px-4 py-2 text-xs font-semibold text-ink hover:border-brand-600 hover:text-brand-600" data-lock-user="' + row.id + '">נעילה</button>'; } }
               ],
               rows: filteredUsers(),
               empty: "לא נמצאו משתמשים לפי החיפוש או הסינון שנבחרו."
@@ -204,18 +311,16 @@
       });
 
       $(root).on("click", "[data-lock-user]", function () {
-        var email = $(this).data("lock-user");
-        users = users.map(function (row) {
-          if (row.email !== email) {
-            return row;
-          }
-
-          return $.extend({}, row, {
-            locked: !row.locked,
-            status: row.locked ? "פעיל" : "נעול"
+        var id = $(this).data("lock-user");
+        App.MockApi.lockUser(id).then(function () {
+          users = users.map(function (row) {
+            if (row.id !== id) {
+              return row;
+            }
+            return $.extend({}, row, { locked: true, status: "locked" });
           });
+          renderAdminPage();
         });
-        renderAdminPage();
       });
     });
   };

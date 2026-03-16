@@ -10,9 +10,6 @@
       '    <p class="text-xs font-bold uppercase tracking-[0.22em] text-slateText">' + config.eyebrow + "</p>",
       '    <h1 class="mt-4 text-4xl font-extrabold leading-tight text-ink">' + config.title + "</h1>",
       '    <p class="mt-4 text-base leading-8 text-slateText">' + config.description + "</p>",
-      (config.highlights && config.highlights.length ? '    <div class="mt-6 grid gap-3">' + config.highlights.map(function (item) {
-        return '<div class="rounded-[24px] border border-line bg-surface px-5 py-4 text-sm leading-7 text-slateText">' + item + "</div>";
-      }).join("") + "</div>" : ""),
       '    <div class="mt-8">' + config.form + "</div>",
       "  </div>",
       "</section>"
@@ -93,6 +90,13 @@
       }
 
       App.MockApi.signUp(payload).then(function (response) {
+        if (!response.success) {
+          var message = response.code === "email_taken"
+            ? "האימייל כבר רשום במערכת. נסו להתחבר או השתמשו בכתובת אחרת."
+            : "לא ניתן להשלים הרשמה כרגע. נסו שוב.";
+          $("#signup-errors").html('<div class="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-danger">' + message + "</div>");
+          return;
+        }
         $("#auth-state").html('<div class="mb-5 rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-sm text-success">החשבון נפתח עבור ' + App.Helpers.escapeHtml(response.email) + ".</div>");
         $("#signup-form").replaceWith(
           '<div class="rounded-[28px] border border-line bg-surface p-6 text-center">' +
@@ -154,6 +158,11 @@
           return;
         }
 
+        if (response.status === "error") {
+          $("#login-errors").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">לא ניתן להתחבר כרגע. בדקו חיבור ונסו שוב.</div>');
+          return;
+        }
+
         $("#auth-state").html('<div class="mb-5 rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-sm text-success">הכניסה בוצעה בהצלחה. מעבירים אותך ללוח המחוונים.</div>');
         window.setTimeout(function () {
           window.location.href = response.redirect;
@@ -193,6 +202,11 @@
       App.MockApi.forgotPassword(email).then(function (response) {
         if (response.status === "unknown") {
           $("#forgot-state").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">לא נמצאה כתובת מוכרת במערכת ההדגמה. בדקו את האיות או פנו לתמיכה.</div>');
+          return;
+        }
+
+        if (response.status === "error") {
+          $("#forgot-state").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">לא ניתן לשלוח קישור איפוס כרגע. נסו שוב.</div>');
           return;
         }
 
@@ -256,6 +270,11 @@
 
           if (response.status === "expired") {
             $("#reset-state").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">תוקף הקישור פג. יש לבקש קישור חדש.</div>');
+            return;
+          }
+
+          if (response.status === "error") {
+            $("#reset-state").html('<div class="rounded-2xl border border-warning/20 bg-amber-50 px-4 py-3 text-warning">לא ניתן לעדכן סיסמה כרגע. נסו שוב.</div>');
             return;
           }
 

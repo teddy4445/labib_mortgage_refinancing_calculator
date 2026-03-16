@@ -1,4 +1,4 @@
-# Labib Mortgage Monitoring Front-End
+# Labib Mortgage Monitoring Platform
 
 RTL-first, multi-page front-end for a mortgage monitoring and refinance recommendation product built with:
 
@@ -7,9 +7,16 @@ RTL-first, multi-page front-end for a mortgage monitoring and refinance recommen
 - Vanilla JavaScript
 - jQuery
 
-The project is front-end only. All business data is mocked through client-side service modules so a later Python REST backend can replace the mock layer without rewriting the UI.
+The repository now contains:
+
+- The original front-end
+- A new FastAPI backend scaffold under [backend](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend)
+
+The UI still runs on mock data, but the backend package now includes the first service layer for email, database, calculations, market-data gathering, analytics, and security.
 
 ## Run locally
+
+### Front-end
 
 1. Start a local static server from [C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator):
 
@@ -31,6 +38,50 @@ Notes:
 - Language bundles are loaded from [assets/i18n](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/assets/i18n), so opening pages directly with `file://` will not reliably load translations. Use a local server.
 - A minimal local dev server is included in [server.js](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/server.js).
 
+### Back-end
+
+1. Create a virtual environment and install dependencies:
+
+```powershell
+cd C:\Users\lazeb\Desktop\labib_mortgage_refinancing_calculator
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+```
+
+2. Copy [.env.example](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/.env.example) to `.env`. By default it uses SQLite for local dev. If you want PostgreSQL, set:
+
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/labib_mortgage
+```
+
+3. Start the API (use port `8001` so the front-end can stay on `8000`):
+
+```powershell
+uvicorn backend.app.main:app --reload --port 8001
+```
+
+4. Open the API docs at [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs).
+
+Notes:
+
+- The front-end now calls the API directly. By default it targets `http://localhost:8001/api/v1`.
+- You can override the API base by setting `localStorage["labib-api-base"]` in the browser or by adding `data-api-base` to the `<body>` tag on any page.
+
+### One-command start (front + back)
+
+From the project root:
+
+```powershell
+.\start-dev.ps1
+```
+
+Or in Command Prompt:
+
+```bat
+start-dev.bat
+```
+
 ## Structure
 
 - [index.html](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/index.html)
@@ -45,6 +96,12 @@ Notes:
 - [assets/js/utils](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/assets/js/utils)
 - [assets/i18n](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/assets/i18n)
 - [mock-data/app-data.js](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/mock-data/app-data.js)
+- [backend/app/main.py](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/main.py)
+- [backend/app/models.py](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/models.py)
+- [backend/app/schemas.py](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/schemas.py)
+- [backend/app/managers](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/managers)
+- [backend/app/api](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/api)
+- [backend/app/templates/email](C:/Users/lazeb/Desktop/labib_mortgage_refinancing_calculator/backend/app/templates/email)
 
 ## Architecture
 
@@ -83,3 +140,10 @@ Get-ChildItem -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName 
 - Replace `App.MockApi.*` methods with real REST calls when Python endpoints are ready.
 - Keep response shapes aligned with `mock-data/app-data.js` to minimize UI rewrites.
 - Layouts, tabs, tables, and modal interactions are already separated from page data assembly.
+- Current backend foundations:
+  - `EmailManager` for templated SendGrid email delivery
+  - `DataBaseManager` for PostgreSQL-backed CRUD, search, filtering, analytics, and admin summaries
+  - `CalculatorManager` for monthly payment, break-even, full refinance, and partial refinance evaluation
+  - `DataGatheringManager` for scheduled market-data refresh jobs
+  - `AnalyticsManager` for drop-off, conversion, email failure, and API failure tracking
+  - `CaptchaManager`, `ValidationManager`, and `RateLimitManager` for core security controls
