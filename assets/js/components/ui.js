@@ -2,46 +2,49 @@
   window.App = window.App || {};
 
   function badge(tone, label) {
-    return '<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ' + App.Helpers.severityClasses(tone) + '">' + label + "</span>";
-  }
+  var baseClass = 'inline-flex items-center rounded-full border px-4 py-2 text-xs font-bold';
+  var classes = App.Helpers.severityClasses(tone);
+  return '<span class="' + baseClass + ' ' + classes + ' gap-2">' + label + "</span>";
+}
 
   function metricCard(item) {
-    return [
-      '<article class="rounded-[24px] border border-line bg-white p-5 shadow-soft">',
-      '  <p class="text-sm font-semibold text-slateText">' + item.label + "</p>",
-      '  <p class="mt-3 text-3xl font-extrabold tabular-nums text-ink">' + item.value + "</p>",
-      (item.note ? '  <p class="mt-2 text-sm text-slateText">' + item.note + "</p>" : ""),
-      (item.badge ? '  <div class="mt-3">' + badge(item.badge.tone, item.badge.label) + "</div>" : ""),
-      "</article>"
-    ].join("");
+  return [
+    '<article class="rounded-[24px] border border-line bg-white p-7 shadow-soft hover:shadow-panel transition-shadow">',
+    '  <p class="text-xs font-bold uppercase tracking-[0.18em] text-slateText">' + item.label + "</p>",
+    '  <p class="mt-4 text-4xl font-extrabold tabular-nums text-ink">' + item.value + "</p>",
+    (item.note ? '  <p class="mt-3 text-sm leading-6 text-slateText">' + item.note + "</p>" : ""),
+    (item.badge ? '  <div class="mt-4">' + badge(item.badge.tone, item.badge.label) + "</div>" : ""),
+    "</article>"
+  ].join("");
+}
+
+function table(config) {
+  var header = config.columns.map(function (column) {
+    return '<th class="px-5 py-4 text-start text-xs font-bold uppercase tracking-[0.18em] text-slateText bg-surface">' + column.label + "</th>";
+  }).join("");
+
+  var rows = (config.rows || []).map(function (row, rowIndex) {
+    var cells = config.columns.map(function (column) {
+      var value = typeof column.render === "function" ? column.render(row) : row[column.key];
+      return '<td class="border-t border-line px-5 py-4 align-top text-sm text-ink">' + value + "</td>";
+    }).join("");
+    var rowClass = rowIndex % 2 === 1 ? ' bg-surface/30' : '';
+    return "<tr class='" + rowClass + "'>" + cells + "</tr>";
+  }).join("");
+
+  if (!rows) {
+    rows = '<tr><td colspan="' + config.columns.length + '" class="border-t border-line px-5 py-12 text-center text-sm text-slateText">' + (config.empty || "אין נתונים להצגה") + "</td></tr>";
   }
 
-  function table(config) {
-    var header = config.columns.map(function (column) {
-      return '<th class="px-4 py-3 text-start text-xs font-bold uppercase tracking-[0.18em] text-slateText">' + column.label + "</th>";
-    }).join("");
-
-    var rows = (config.rows || []).map(function (row) {
-      var cells = config.columns.map(function (column) {
-        var value = typeof column.render === "function" ? column.render(row) : row[column.key];
-        return '<td class="border-t border-line px-4 py-4 align-top text-sm text-ink">' + value + "</td>";
-      }).join("");
-      return "<tr>" + cells + "</tr>";
-    }).join("");
-
-    if (!rows) {
-      rows = '<tr><td colspan="' + config.columns.length + '" class="border-t border-line px-4 py-8 text-center text-sm text-slateText">' + (config.empty || "אין נתונים להצגה") + "</td></tr>";
-    }
-
-    return [
-      '<div class="table-scroll rounded-[24px] border border-line bg-white shadow-soft">',
-      '  <table class="w-full border-collapse">',
-      "    <thead><tr>" + header + "</tr></thead>",
-      "    <tbody>" + rows + "</tbody>",
-      "  </table>",
-      "</div>"
-    ].join("");
-  }
+  return [
+    '<div class="table-scroll rounded-[24px] border border-line bg-white shadow-soft overflow-hidden">',
+    '  <table class="w-full border-collapse">',
+    "    <thead><tr>" + header + "</tr></thead>",
+    "    <tbody>" + rows + "</tbody>",
+    "  </table>",
+    "</div>"
+  ].join("");
+}
 
   function tabs(config) {
     var buttons = config.tabs.map(function (tab, index) {

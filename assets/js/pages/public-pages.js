@@ -80,7 +80,7 @@
         '<section class="hero-shell hero-grid overflow-hidden rounded-[40px] border border-line px-6 py-10 shadow-panel sm:px-8 lg:px-10">',
         '  <div class="grid gap-10 lg:grid-cols-[1.08fr,0.92fr] lg:items-center">',
         '    <div>',
-        '      <h1 class="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-ink sm:text-5xl lg:text-6xl">האם כדאי למחזר את המשכנתא עכשיו?</h1>',
+        '      <h1 class="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-ink sm:text-5xl lg:text-6xl">למחזר או לא למחזר, זאת השאלה</h1>',
         '      <p class="mt-5 max-w-2xl text-lg leading-8 text-slateText">Labib הוא כלי החלטה AI-driven למחזור ומעקב של משכנתא קיימת. הוא משווה בין התיק הנוכחי לחלופות שוק, מסביר חיסכון נטו, סיכון, דחיפות ו-break-even, ומבהיר מתי נדרש ייעוץ אנושי לפני פעולה.</p>',
         '      <div class="mt-6 grid gap-3 sm:grid-cols-3">',
         '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("compare") + '</div><p class="mt-4 text-sm font-semibold text-ink">השוואה בין תיק קיים, מחזור מלא ומחזור חלקי</p></div>',
