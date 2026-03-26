@@ -137,11 +137,10 @@
         return createTrack(index, track);
       }),
       costs: {
-        prepaymentFee: mortgage.refinanceCosts.prepaymentFee,
-        legalFee: mortgage.refinanceCosts.legalFee,
-        appraisal: mortgage.refinanceCosts.appraisal,
-        registration: mortgage.refinanceCosts.registration,
-        advisor: mortgage.refinanceCosts.advisor
+        prepaymentFee: 0,  // Will be calculated on Tab 3 render
+        advisor: 7000,     // Professional mortgage advisor fee
+        bankFees: 3500,    // Bank operational costs (registration, admin, etc)
+        appraisalRequired: false  // Optional appraisal fee (₪2,500 if checked)
       },
       preferences: {
         holdingPeriodYears: 8,
@@ -254,15 +253,10 @@
       totalBalance: state.tracks.reduce(function (sum, track) {
         return sum + Number(track.outstandingBalance || 0);
       }, 0),
-      totalFees: [
-        state.costs.prepaymentFee,
-        state.costs.legalFee,
-        state.costs.appraisal,
-        state.costs.registration,
-        state.costs.advisor
-      ].reduce(function (sum, value) {
-        return sum + Number(value || 0);
-      }, 0)
+      totalFees: (Number(state.costs.prepaymentFee || 0) + 
+                  Number(state.costs.advisor || 0) + 
+                  Number(state.costs.bankFees || 0) + 
+                  (state.costs.appraisalRequired === true ? 2500 : 0))
     };
   }
 
@@ -383,20 +377,116 @@
     }
 
     if (step === 3) {
-      return formSection(
-        "שלב 3: עלויות מחזור",
-        "הסכומים כאן משמשים לחישוב break-even וחיסכון נטו.",
-        '<div class="wizard-track-grid mt-8">' + [
-          input("עמלת פירעון מוקדם", "costs.prepaymentFee", state.costs.prepaymentFee, "number", {
-            attrs: 'min="0" step="100"',
-            help: "אם עמלת הפירעון עדיין לא ידועה, אפשר להשאיר 0 ונבדוק זאת בהמשך."
-          }),
-          input("יועץ / תפעול", "costs.advisor", state.costs.advisor, "number", {
-            attrs: 'min="0" step="50"',
-            help: "עמלת יועץ משכנתאות: בדרך כלל 1-1.25% מסכום ההלוואה + מע״מ. התחשב בעלויות שלך."
-          })
-        ].join("") + '</div><div class="mt-6">' + infoNote("הוצאות משפטיות, שמאות ורישום מחושבות אצלנו בהמשך לפי אומדן שמרני ובהתאם לרף החוקי. בפועל ייתכנו הנחות מהבנק.", "warning") + "</div>"
-      );
+      // PREPAYMENT PENALTY CALCULATION - Full NPV Implementation
+      function calculatePrepaymentPenalty(track, daysSinceOrigin, bankOfIsraelMarketRate) {
+        if (!track || !track.outstandingBalance || !track.currentRate) {
+          return 0;
+        }
+
+        var outstandingBalance = Number(track.outstandingBalance);
+        var originalAnnualRate = Number(track.currentRate) / 100;
+        var remainingMonths = Math.max(1, Number(track.remainingTermMonths) || 240);
+        
+        var originalMonthlyRate = Math.pow(1 + originalAnnualRate, 1/12) - 1;
+        var marketMonthlyRate = Math.pow(1 + (bankOfIsraelMarketRate / 100), 1/12) - 1;
+
+        var monthlyPayment = outstandingBalance * (originalMonthlyRate * Math.pow(1 + originalMonthlyRate, remainingMonths)) / 
+                             (Math.pow(1 + originalMonthlyRate, remainingMonths) - 1);
+
+        var pvR = 0;
+        for (var i = 1; i <= remainingMonths; i++) {
+          pvR += monthlyPayment / Math.pow(1 + originalMonthlyRate, i);
+        }
+
+        var pvA = 0;
+        for (var i = 1; i <= remainingMonths; i++) {
+          pvA += monthlyPayment / Math.pow(1 + marketMonthlyRate, i);
+        }
+
+        var economicLoss = Math.max(0, pvA - pvR);
+
+        var yearsSinceOrigin = daysSinceOrigin / 365.25;
+        var discountFactor = 1.0;
+
+        if (yearsSinceOrigin >= 3 && yearsSinceOrigin < 5) {
+          discountFactor = 0.80;
+        } else if (yearsSinceOrigin >= 5) {
+          discountFactor = 0.70;
+        }
+
+        var penalty = economicLoss * discountFactor;
+
+        return Math.round(penalty);
+      }
+
+      // Calculate penalties for each fixed-rate track
+      var boiMarketRate = 3.8;
+      var totalPenalty = 0;
+      var daysSinceOrigin = Number(state.basic.yearsSinceOrigin) * 365.25;
+
+      state.tracks.forEach(function(track) {
+        if (track.type === 'fixed_non_linked' || track.type === 'fixed_linked') {
+          var penalty = calculatePrepaymentPenalty(track, daysSinceOrigin, boiMarketRate);
+          totalPenalty += penalty;
+        }
+      });
+
+      // Default costs (user can override)
+      var advisorFee = Number(state.costs.advisor) || 7000;
+      var bankFees = Number(state.costs.bankFees) || 3500;
+      var appraisalFee = (state.costs.appraisalRequired === true) ? 2500 : 0;
+      
+      // Always recalculate penalty based on current track data
+      var customPenalty = totalPenalty;
+
+      var totalCosts = displayPenalty + advisorFee + bankFees + appraisalFee;
+
+      var tab3Html = '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h2 class="text-3xl font-bold text-ink">שלב 3: עלויות מחזור משכנתה</h2><p class="mt-3 text-sm leading-7 text-slateText">סיכום כל העלויות הכרוכות בפירעון המשכנתה הקיימת ולקיחת משכנתה חדשה. ערכים מוערכים בחסר (שמרני).</p></section>';
+
+      tab3Html += '<div class="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">';
+
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלת פירעון מוקדם</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(customPenalty) + '</p>';
+      if (customPenalty === totalPenalty && totalPenalty > 0) {
+        tab3Html += '<p class="mt-1 text-xs text-success">✓ מחושבת לפי NPV</p>';
+      }
+      tab3Html += '</div></div></div>';
+
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שכר טרחה (יועץ)</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(advisorFee) + '</p><p class="mt-1 text-xs text-slateText">משרה מקצועית</p></div></div></div>';
+
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלות בנקאיות</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(bankFees) + '</p><p class="mt-1 text-xs text-slateText">רישום + טיפול</p></div></div></div>';
+
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שמאות (אופציונלי)</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(appraisalFee) + '</p><p class="mt-1 text-xs text-slateText">' + (appraisalFee === 2500 ? '✓ נדרשת' : '—') + '</p></div></div></div>';
+
+      tab3Html += '</div>';
+
+      tab3Html += '<section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h3 class="text-xl font-bold text-ink mb-6">עריכת עלויות</h3><div class="grid gap-6 lg:grid-cols-2">';
+
+      tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">עמלת פירעון מוקדם (₪)</label>';
+      // Show what user entered, or calculated value if nothing entered
+      var displayPenalty = (state.costs.prepaymentFee && Number(state.costs.prepaymentFee) > 0) ? Number(state.costs.prepaymentFee) : customPenalty;
+      tab3Html += '<input type="number" name="costs.prepaymentFee" value="' + displayPenalty + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.prepaymentFee" placeholder="0">';
+      tab3Html += '<p class="mt-2 text-xs text-slateText">אם יש לכם ציטוט מהבנק, הכניסו כאן. אחרת, משתמשים בחישוב שלנו.</p></div>';
+
+      tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">שכר טרחה - יועץ משכנתאות (₪)</label>';
+      tab3Html += '<input type="number" name="costs.advisor" value="' + advisorFee + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.advisor" placeholder="7000">';
+      tab3Html += '<p class="mt-2 text-xs text-slateText">ברירת מחדל: ₪7,000 (טווח שוק: ₪6,000-9,000)</p></div>';
+
+      tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">עמלות בנקאיות (₪)</label>';
+      tab3Html += '<input type="number" name="costs.bankFees" value="' + bankFees + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.bankFees" placeholder="3500">';
+      tab3Html += '<p class="mt-2 text-xs text-slateText">רישום + טיפול + הנמכה (ברירת מחדל: ₪3,500)</p></div>';
+
+      tab3Html += '<div><label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" name="costs.appraisalRequired" ' + (appraisalFee === 2500 ? 'checked' : '') + ' class="w-5 h-5 rounded border-line text-brand-600" data-bind="costs.appraisalRequired"><span class="text-sm font-semibold text-ink">נדרשת שמאות חדשה (₪2,500)</span></label>';
+      tab3Html += '<p class="mt-2 text-xs text-slateText">סמנו אם הבנק דורש שמאות חדשה</p></div>';
+
+      tab3Html += '</div></section>';
+
+      tab3Html += '<section class="rounded-[32px] border-2 border-brand-600 bg-brand-50 p-8 shadow-soft"><div class="flex items-baseline justify-between"><div><p class="text-sm font-semibold uppercase tracking-wide text-slateText">סה"כ עלויות מחזור</p><p class="mt-3 text-4xl font-bold text-brand-600">' + App.Format.currency(totalCosts) + '</p></div><div class="text-right"><p class="text-xs text-slateText mb-2">פירוט:</p><div class="space-y-1 text-sm"><div class="flex justify-between"><span>פירעון מוקדם:</span><span class="font-semibold">' + App.Format.currency(displayPenalty) + '</span></div><div class="flex justify-between"><span>יועץ:</span><span class="font-semibold">' + App.Format.currency(advisorFee) + '</span></div><div class="flex justify-between"><span>בנק:</span><span class="font-semibold">' + App.Format.currency(bankFees) + '</span></div>' + (appraisalFee > 0 ? '<div class="flex justify-between"><span>שמאות:</span><span class="font-semibold">' + App.Format.currency(appraisalFee) + '</span></div>' : '') + '</div></div></div></section>';
+
+      tab3Html += infoNote("נתונים אלה משמשים לחישוב נקודת שיוויון (break-even) ודירוג חיסכון נטו.", "info");
+
+      tab3Html += '</div>';
+
+      return tab3Html;
     }
 
     if (step === 4) {
@@ -676,6 +766,10 @@
         scheduleEmailCheck($(this).val());
       }
       if ($(this).data("bind").indexOf("tracks.") === 0 && /\.type$/.test($(this).data("bind"))) {
+        render();
+      }
+      // Always re-render current tab when track data changes so penalties stay updated
+      if ($(this).data("bind").indexOf("tracks.") === 0 && /\.(outstandingBalance|currentRate|remainingTermMonths)$/.test($(this).data("bind"))) {
         render();
       }
     });
