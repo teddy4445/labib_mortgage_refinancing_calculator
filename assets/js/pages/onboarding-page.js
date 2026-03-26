@@ -48,6 +48,16 @@
     }
   };
 
+  var lenderOptions = [
+    "בנק לאומי",
+    "בנק הפועלים",
+    "בנק דיסקונט",
+    "בנק מזרחי טפחות",
+    "בנק הבינלאומי",
+    "בנק אגוד",
+    "בנק אחר"
+  ];
+
   function trackTypeOptions(selected) {
     return Object.keys(trackTypeLabels).map(function (key) {
       return '<option value="' + key + '"' + (key === selected ? " selected" : "") + ">" + trackTypeLabels[key] + "</option>";
@@ -106,12 +116,13 @@
     var session = stored.session || {};
     var baseState = {
       basic: {
-        propertyCity: "תל אביב",
+        propertySettlement: "תל אביב",
         propertyValue: mortgage.propertyValue,
         currentMonthlyPayment: mortgage.currentMonthlyPayment,
-        remainingTermMonths: mortgage.remainingTermMonths,
-        loanPurpose: "דירת מגורים",
-        occupancyStatus: "מגורים עצמיים"
+        propertyType: "מגורים_עצמיים",
+        propertySubtype: "דירת_מגורים",
+        yearsSinceOrigin: 0,
+        remainingTermYears: 25
       },
       lender: {
         lenderName: mortgage.lender,
@@ -200,11 +211,16 @@
     return /^[0-9+\-\s()]{9,}$/.test(String(value || ""));
   }
 
+  function helpBubble(tooltipText) {
+    return '<button type="button" class="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 hover:bg-brand-200" data-help-bubble="' + App.Helpers.escapeHtml(tooltipText) + '" title="עזרה">?</button>';
+  }
+
   function input(label, bind, value, type, options) {
     var config = options || {};
     var fieldType = type || "text";
     var attrs = config.attrs || "";
     var hint = config.hint ? '<p class="mt-2 text-xs text-slateText">' + config.hint + "</p>" : "";
+    var help = config.help ? helpBubble(config.help) : "";
     var element = "";
 
     if (fieldType === "select") {
@@ -215,7 +231,7 @@
       element = '<input data-bind="' + bind + '" type="' + fieldType + '" value="' + App.Helpers.escapeHtml(value) + '" class="w-full rounded-2xl border-line bg-white px-4 py-3 text-sm" ' + attrs + " />";
     }
 
-    return '<label class="block"><span class="mb-2 block text-sm font-semibold text-ink">' + label + "</span>" + element + hint + "</label>";
+    return '<label class="block"><span class="mb-2 flex items-center text-sm font-semibold text-ink">' + label + help + "</span>" + element + hint + "</label>";
   }
 
   function factCard(label, value) {
@@ -312,19 +328,53 @@
     if (step === 1) {
       return formSection(
         "שלב 1: מידע בסיסי ובנק",
-        "מרכזים כאן את פרטי הנכס, התשלום והבנק כדי לקצר את ההזנה הראשונית.",
-        '<div class="wizard-track-grid mt-8">' + [
-          input("עיר הנכס", "basic.propertyCity", state.basic.propertyCity),
-          input("שווי נכס משוער", "basic.propertyValue", state.basic.propertyValue, "number", { attrs: 'min="0" step="1000"' }),
-          input("תשלום חודשי נוכחי", "basic.currentMonthlyPayment", state.basic.currentMonthlyPayment, "number", { attrs: 'min="0" step="10"' }),
-          input("בנק / מלווה", "lender.lenderName", state.lender.lenderName),
-          input("מטרת ההלוואה", "basic.loanPurpose", state.basic.loanPurpose, "select", {
-            options: '<option value="דירת מגורים"' + (state.basic.loanPurpose === "דירת מגורים" ? " selected" : "") + '>דירת מגורים</option><option value="שדרוג נכס"' + (state.basic.loanPurpose === "שדרוג נכס" ? " selected" : "") + '>שדרוג נכס</option><option value="השקעה"' + (state.basic.loanPurpose === "השקעה" ? " selected" : "") + '>השקעה</option>'
-          }),
-          input("סטטוס מגורים", "basic.occupancyStatus", state.basic.occupancyStatus, "select", {
-            options: '<option value="מגורים עצמיים"' + (state.basic.occupancyStatus === "מגורים עצמיים" ? " selected" : "") + '>מגורים עצמיים</option><option value="נכס מושכר"' + (state.basic.occupancyStatus === "נכס מושכר" ? " selected" : "") + '>נכס מושכר</option>'
-          })
-        ].join("") + '</div><div class="mt-6">' + infoNote("פרטי מקור נוספים, כמו תאריך נטילה או סניף, נשלימים בהמשך מול מסמכי הבנק ואין צורך להזין אותם עכשיו.") + "</div>"
+        "מרכזים כאן את פרטי הנכס, התשלום, הבנק וההיסטוריה של המשכנתה.",
+        '<div class="space-y-8">' +
+          '<div>' +
+            '<h3 class="mb-4 text-lg font-semibold text-ink">קטגוריה ראשונה: פרטי הנכס</h3>' +
+            '<div class="wizard-track-grid">' + [
+              input("יישוב הנכס", "basic.propertySettlement", state.basic.propertySettlement, "text", {
+                help: "היישוב או העיר בו נמצא הנכס. תוכל/י למצוא זאת במסמך הרכישה או בתעודת הבעלות מהבנק."
+              }),
+              input("שווי נכס משוער", "basic.propertyValue", state.basic.propertyValue, "number", {
+                attrs: 'min="200000" step="1000"',
+                help: "הערכה של שווי הנכס בשוק. אם אתה זוכר/ת את מחיר הרכישה, תוכל/י להשתמש בו. בעלייה בשוק בשנים האחרונות: בערך 5-8% בשנה."
+              }),
+              input("סוג הנכס", "basic.propertyType", state.basic.propertyType, "select", {
+                options: '<option value="מגורים_עצמיים">מגורים עצמיים</option><option value="נכס_מושכר">נכס מושכר (להשקעה)</option>',
+                help: "בחר/י את סוג הנכס. סוג הנכס משפיע על גבולות ההלוואה: מגורים עצמיים - עד 75%, נכס להשקעה - עד 50%."
+              })
+            ].join("") + '</div>' +
+          '</div>' +
+          '<div>' +
+            '<h3 class="mb-4 text-lg font-semibold text-ink">קטגוריה שנייה: פרטי התשלום הנוכחי</h3>' +
+            '<div class="wizard-track-grid">' + [
+              input("תשלום חודשי נוכחי", "basic.currentMonthlyPayment", state.basic.currentMonthlyPayment, "number", {
+                attrs: 'min="500" step="10"',
+                help: "ההוצאה החודשית שלך עבור המשכנתה. תוכל/י למצוא זאת בדוח החודשי מהבנק. זה כולל קרן וריבית, לא כולל ביטוח או עמלות נוספות."
+              }),
+              input("בנק מלווה", "lender.lenderName", state.lender.lenderName, "select", {
+                options: lenderOptions.map(function (bank) {
+                  return '<option value="' + bank + '"' + (state.lender.lenderName === bank ? " selected" : "") + '>' + bank + '</option>';
+                }).join(""),
+                help: "בחר/י את הבנק שממנו לקחת את המשכנתה. בדוק/י בדוח החודשי או בהודעות הבנק אם אינך זוכר/ת."
+              })
+            ].join("") + '</div>' +
+          '</div>' +
+          '<div>' +
+            '<h3 class="mb-4 text-lg font-semibold text-ink">קטגוריה שלישית: משך התקופה</h3>' +
+            '<div class="wizard-track-grid">' + [
+              input("שנים שחלפו מנטילת המשכנתה", "basic.yearsSinceOrigin", state.basic.yearsSinceOrigin, "number", {
+                attrs: 'min="0" max="50" step="1"',
+                help: "כמה שנים עברו מאז שלקחת את המשכנתה? זה חשוב כדי לחשב קנסי פירעון מוקדם. בנק ישראל מוריד את הקנס ב-20% אחרי 2 שנים וב-30% אחרי 5 שנים."
+              }),
+              input("מספר השנים הנותרות", "basic.remainingTermYears", state.basic.remainingTermYears, "number", {
+                attrs: 'min="1" max="30" step="1"',
+                help: "כמה שנים נותרו עד סיום תשלום המשכנתה? אם לקחת משכנתה ל-30 שנה והשלמת 5 שנים, נותרו 25 שנים. תוכל/י למצוא בדוח החודשי 'תקופת התשלום הנותרת'."
+              })
+            ].join("") + '</div>' +
+          '</div>' +
+        '</div>'
       );
     }
 
@@ -339,9 +389,12 @@
         '<div class="wizard-track-grid mt-8">' + [
           input("עמלת פירעון מוקדם", "costs.prepaymentFee", state.costs.prepaymentFee, "number", {
             attrs: 'min="0" step="100"',
-            hint: "אם עמלת הפירעון עדיין לא ידועה, אפשר להשאיר 0 ונבדוק זאת בהמשך."
+            help: "אם עמלת הפירעון עדיין לא ידועה, אפשר להשאיר 0 ונבדוק זאת בהמשך."
           }),
-          input("יועץ / תפעול", "costs.advisor", state.costs.advisor, "number", { attrs: 'min="0" step="50"' })
+          input("יועץ / תפעול", "costs.advisor", state.costs.advisor, "number", {
+            attrs: 'min="0" step="50"',
+            help: "עמלת יועץ משכנתאות: בדרך כלל 1-1.25% מסכום ההלוואה + מע״מ. התחשב בעלויות שלך."
+          })
         ].join("") + '</div><div class="mt-6">' + infoNote("הוצאות משפטיות, שמאות ורישום מחושבות אצלנו בהמשך לפי אומדן שמרני ובהתאם לרף החוקי. בפועל ייתכנו הנחות מהבנק.", "warning") + "</div>"
       );
     }
@@ -403,7 +456,7 @@
     }
 
     return '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h2 class="text-3xl font-bold text-ink">שלב 6: סקירה ושליחה</h2><p class="mt-3 text-sm leading-7 text-slateText">בודקים את הנתונים, מאשרים שהסימולציה הוזנה כראוי, ואז יוצרים את החשבון ושומרים את התוצאות.</p><div class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">' + [
-      App.UI.metricCard({ label: "בנק / מלווה", value: App.Helpers.escapeHtml(state.lender.lenderName), note: state.basic.propertyCity }),
+      App.UI.metricCard({ label: "בנק / מלווה", value: App.Helpers.escapeHtml(state.lender.lenderName), note: state.basic.propertySettlement }),
       App.UI.metricCard({ label: "מסלולים", value: String(state.tracks.length), note: "מסלולים פעילים" }),
       App.UI.metricCard({ label: "יתרה כוללת", value: App.Format.currency(moneySummary(state).totalBalance), note: "סך כל המסלולים" }),
       App.UI.metricCard({ label: "עלויות מחזור", value: App.Format.currency(moneySummary(state).totalFees), note: "כולל אומדן שמרני להוצאות נלוות" })
@@ -424,14 +477,42 @@
     var errors = [];
 
     if (step === 1) {
-      if (!state.basic.propertyCity) {
-        errors.push("יש להזין עיר נכס.");
+      if (!state.basic.propertySettlement || state.basic.propertySettlement.trim().length < 2) {
+        errors.push("יש להזין יישוב נכס בן לפחות 2 תווים.");
+      }
+      if (Number(state.basic.propertyValue) < 200000 || Number(state.basic.propertyValue) > 50000000) {
+        errors.push("שווי הנכס חייב להיות בין ₪200,000 ל-₪50,000,000.");
+      }
+      if (Number(state.basic.currentMonthlyPayment) < 500 || Number(state.basic.currentMonthlyPayment) > 200000) {
+        errors.push("התשלום החודשי חייב להיות בין ₪500 ל-₪200,000.");
       }
       if (!state.lender.lenderName) {
         errors.push("יש להשלים שם בנק או מלווה.");
       }
-      if (Number(state.basic.propertyValue) <= 0 || Number(state.basic.currentMonthlyPayment) <= 0) {
-        errors.push("יש להזין שווי נכס ותשלום חודשי חיוביים.");
+      if (!state.basic.propertyType) {
+        errors.push("יש לבחור סוג נכס.");
+      }
+      if (Number(state.basic.yearsSinceOrigin) < 0 || Number(state.basic.yearsSinceOrigin) > 50) {
+        errors.push("שנים שחלפו חייבות להיות בין 0 ל-50.");
+      }
+      if (Number(state.basic.remainingTermYears) < 1 || Number(state.basic.remainingTermYears) > 30) {
+        errors.push("שנים נותרות חייבות להיות בין 1 ל-30.");
+      }
+
+      // Cross validation
+      var totalYears = Number(state.basic.yearsSinceOrigin) + Number(state.basic.remainingTermYears);
+      if (totalYears > 55) {
+        errors.push("סך התקופה (שנים שחלפו + שנים נותרות) עולה על 55 שנים. בדוק/י את הנתונים.");
+      }
+
+      // LTV check
+      var outstandingBalance = state.tracks.reduce(function (sum, track) {
+        return sum + Number(track.outstandingBalance || 0);
+      }, 0);
+      var ltv = (outstandingBalance / Number(state.basic.propertyValue)) * 100;
+      var ltvMax = state.basic.propertyType === "נכס_מושכר" ? 50 : 75;
+      if (ltv > ltvMax) {
+        errors.push("יחס הלוואה (LTV) חורג מהמקסימום המותר (" + ltvMax + "%). בדוק/י את הנתונים.");
       }
     }
 
@@ -572,6 +653,16 @@
         '<section class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div class="text-sm text-slateText">שלב ' + currentStep + " מתוך " + steps.length + '</div><div class="wizard-actions">' + (currentStep > 1 ? '<button type="button" class="rounded-full border border-line px-5 py-3 text-sm font-semibold text-ink hover:border-brand-600 hover:text-brand-600" data-wizard-prev>חזרה</button>' : "") + (isFinalStep ? '<button type="button" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-wizard-submit' + (submitInProgress ? ' disabled="disabled"' : "") + '>יצירת חשבון ושמירת תוצאות</button>' : '<button type="button" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-wizard-next>לשלב הבא</button>') + "</div></section>",
         "</section>"
       ].join("");
+
+      // Attach help bubble handlers
+      $(root).find("[data-help-bubble]").each(function () {
+        var $btn = $(this);
+        var tooltipText = $btn.data("help-bubble");
+        $btn.on("click", function (e) {
+          e.preventDefault();
+          alert(tooltipText);
+        });
+      });
     }
 
     render();
@@ -613,6 +704,7 @@
       syncInputs();
       currentStep = Math.max(1, currentStep - 1);
       render();
+      scrollWizardTop();
     });
 
     $(root).on("click", "[data-wizard-next]", function () {
