@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from backend.app import models
+from backend.app.api.response_utils import build_response_meta
 from backend.app.core.config import get_settings
 from backend.app.dependencies import (
     get_analytics_manager,
@@ -19,7 +20,17 @@ from backend.app.managers.analytics_manager import AnalyticsManager
 from backend.app.managers.database_manager import DataBaseManager
 from backend.app.managers.email_manager import EmailManager
 from backend.app.managers.security_manager import CaptchaManager, RateLimitManager, ValidationManager
-from backend.app.schemas import LoginRequest, PasswordResetConfirm, PasswordResetRequest, UserCreate
+from backend.app.schemas import (
+    EmailAvailabilityResponse,
+    ForgotPasswordResponse,
+    LoginRequest,
+    LoginResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    RegisterResponse,
+    ResetPasswordResponse,
+    UserCreate,
+)
 
 
 router = APIRouter()
@@ -41,7 +52,7 @@ def _build_rate_key(request: Request, rate_limit_manager: RateLimitManager, labe
     return rate_limit_manager.build_key([label, request.client.host if request.client else "unknown"])
 
 
-@router.post("/register")
+@router.post("/register", response_model=RegisterResponse)
 async def register(
     payload: RegisterRequest,
     request: Request,
@@ -51,7 +62,7 @@ async def register(
     email_manager: Annotated[EmailManager, Depends(get_email_manager)],
     analytics_manager: Annotated[AnalyticsManager, Depends(get_analytics_manager)],
     rate_limit_manager: Annotated[RateLimitManager, Depends(get_rate_limit_manager)],
-) -> dict[str, str | int]:
+) -> RegisterResponse:
     rate_limit_manager.check(key=_build_rate_key(request, rate_limit_manager, "register"))
     validation_manager.validate_registration(payload)
     if not await captcha_manager.verify(payload.captcha_token, request.client.host if request.client else None):
@@ -79,35 +90,54 @@ async def register(
         await analytics_manager.track_email_failure(template_name="auth_code.html", error=str(exc))
 
     await analytics_manager.track_conversion(page="register", session_id=None, source="backend_api")
-    return {"status": "pending_verification", "user_id": user.id}
+    return RegisterResponse(
+        status="pending_verification",
+        user_id=user.id,
+        meta=build_response_meta(request),
+    )
 
 
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 async def login(
     payload: LoginRequest,
     request: Request,
     db_manager: Annotated[DataBaseManager, Depends(get_db_manager)],
     rate_limit_manager: Annotated[RateLimitManager, Depends(get_rate_limit_manager)],
-) -> dict[str, str | int]:
+) -> LoginResponse:
     rate_limit_manager.check(key=_build_rate_key(request, rate_limit_manager, "login"))
     user = await db_manager.find_user_by_email(str(payload.email))
     if user is None or user.password_hash != _hash_password(payload.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
     if user.status == models.UserStatus.LOCKED:
         raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="User account is locked.")
-    return {"status": "ok", "role": user.role.value, "user_id": user.id, "username": user.username, "email": user.email}
+    return LoginResponse(
+        status="ok",
+        role=user.role.value,
+        user_id=user.id,
+        username=user.username,
+        email=user.email,
+        account_status=user.status.value,
+        email_verified=user.email_verified,
+        meta=build_response_meta(request),
+    )
 
 
-@router.get("/email-available")
+@router.get("/email-available", response_model=EmailAvailabilityResponse)
 async def email_available(
     email: str,
+    request: Request,
     db_manager: Annotated[DataBaseManager, Depends(get_db_manager)],
-) -> dict[str, bool]:
+) -> EmailAvailabilityResponse:
     existing = await db_manager.find_user_by_email(email)
-    return {"available": existing is None}
+    available = existing is None
+    return EmailAvailabilityResponse(
+        available=available,
+        code="EMAIL_AVAILABLE" if available else "EMAIL_TAKEN",
+        meta=build_response_meta(request),
+    )
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
 async def forgot_password(
     payload: ForgotPasswordRequest,
     request: Request,
@@ -116,13 +146,13 @@ async def forgot_password(
     email_manager: Annotated[EmailManager, Depends(get_email_manager)],
     analytics_manager: Annotated[AnalyticsManager, Depends(get_analytics_manager)],
     rate_limit_manager: Annotated[RateLimitManager, Depends(get_rate_limit_manager)],
-) -> dict[str, str]:
+) -> ForgotPasswordResponse:
     rate_limit_manager.check(key=_build_rate_key(request, rate_limit_manager, "forgot-password"))
     if not await captcha_manager.verify(payload.captcha_token, request.client.host if request.client else None):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Captcha verification failed.")
     user = await db_manager.find_user_by_email(str(payload.email))
     if user is None:
-        return {"status": "ignored"}
+        return ForgotPasswordResponse(status="ignored", email=payload.email, meta=build_response_meta(request))
 
     token = hashlib.sha256(f"reset:{user.email}:{datetime.utcnow().isoformat()}".encode("utf-8")).hexdigest()
     await db_manager.add(
@@ -137,14 +167,15 @@ async def forgot_password(
         email_manager.send_password_reset(to_email=user.email, reset_link=reset_link, user_name=user.username)
     except Exception as exc:
         await analytics_manager.track_email_failure(template_name="password_reset.html", error=str(exc))
-    return {"status": "sent"}
+    return ForgotPasswordResponse(status="sent", email=payload.email, meta=build_response_meta(request))
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=ResetPasswordResponse)
 async def reset_password(
     payload: PasswordResetConfirm,
+    request: Request,
     db_manager: Annotated[DataBaseManager, Depends(get_db_manager)],
-) -> dict[str, str]:
+) -> ResetPasswordResponse:
     token = await db_manager.find_password_reset_token(payload.token)
     if token is None or token.consumed_at is not None or token.expires_at < datetime.utcnow():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token expired.")
@@ -155,4 +186,4 @@ async def reset_password(
 
     await db_manager.update_user_password(user.id, _hash_password(payload.password))
     await db_manager.consume_password_reset_token(token)
-    return {"status": "ok"}
+    return ResetPasswordResponse(status="ok", meta=build_response_meta(request))

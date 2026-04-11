@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Select, delete, func, select
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from backend.app import models
-from backend.app.schemas import AnalyticsEventIn, CustomerRequestIn, MortgageInput, UserCreate
+from backend.app.schemas import AnalyticsEventIn, CustomerRequestIn, MortgageInput, RecommendationResult, UserCreate
 
 
 class DataBaseManager:
@@ -175,7 +176,7 @@ class DataBaseManager:
             loan_purpose=payload.loan_purpose,
             occupancy_status=payload.occupancy_status,
             outstanding_balance_total=sum(track.outstanding_balance for track in payload.tracks),
-            estimated_refinance_cost=payload.prepayment_fee + payload.advisor_cost,
+            estimated_refinance_cost=payload.prepayment_fee + payload.advisor_cost + payload.bank_cost + payload.appraisal_cost,
             raw_payload=raw_payload or payload.model_dump(mode="json"),
         )
 
@@ -197,6 +198,40 @@ class DataBaseManager:
             )
 
         return await self.add(mortgage)
+
+    async def create_analysis_run(self, *, mortgage_id: int, result: RecommendationResult) -> models.AnalysisRun:
+        raw_output = result.model_dump(mode="json")
+        recommendation_code = (
+            result.recommendation_summary.recommendation_code
+            if result.recommendation_summary is not None
+            else result.explanation
+        )
+        selected_total_cost = Decimal(str(result.assumptions.get("selected_total_refinance_cost", "0")))
+        analysis_run = models.AnalysisRun(
+            mortgage_id=mortgage_id,
+            recommendation_type=recommendation_code,
+            should_act_now=result.should_act_now,
+            current_payment=result.current_monthly_payment,
+            proposed_payment=result.projected_monthly_payment,
+            projected_net_savings=result.projected_net_savings,
+            upfront_costs=selected_total_cost,
+            break_even_month=result.break_even_month,
+            npv=result.npv,
+            risk_reduction_summary=", ".join(result.explanation_tokens) if result.explanation_tokens else None,
+            explanation=result.explanation,
+            assumptions=result.assumptions,
+            raw_output=raw_output,
+        )
+        return await self.add(analysis_run)
+
+    async def get_latest_analysis_run(self, mortgage_id: int) -> models.AnalysisRun | None:
+        async with self.session_scope() as session:
+            result = await session.execute(
+                select(models.AnalysisRun)
+                .where(models.AnalysisRun.mortgage_id == mortgage_id)
+                .order_by(models.AnalysisRun.created_at.desc())
+            )
+            return result.scalars().first()
 
     async def create_alert(
         self,
@@ -235,15 +270,40 @@ class DataBaseManager:
             await session.refresh(alert)
             return alert
 
-    async def create_request(self, payload: CustomerRequestIn) -> models.CustomerRequest:
+    async def create_request(
+        self,
+        payload: CustomerRequestIn,
+        *,
+        status: models.RequestStatus | None = None,
+    ) -> models.CustomerRequest:
         request = models.CustomerRequest(
             user_id=payload.user_id,
             request_type=payload.request_type,
+            status=status or models.RequestStatus.OPEN,
             source_page=payload.source_page,
             notes=payload.notes,
             details=payload.details,
         )
         return await self.add(request)
+
+    async def get_latest_request(
+        self,
+        *,
+        user_id: int | None = None,
+        request_type: str | None = None,
+        status: models.RequestStatus | None = None,
+    ) -> models.CustomerRequest | None:
+        query = select(models.CustomerRequest).order_by(models.CustomerRequest.created_at.desc())
+        if user_id is not None:
+            query = query.where(models.CustomerRequest.user_id == user_id)
+        if request_type is not None:
+            query = query.where(models.CustomerRequest.request_type == request_type)
+        if status is not None:
+            query = query.where(models.CustomerRequest.status == status)
+
+        async with self.session_scope() as session:
+            result = await session.execute(query)
+            return result.scalars().first()
 
     async def log_analytics_event(self, payload: AnalyticsEventIn) -> models.AnalyticsEvent:
         event = models.AnalyticsEvent(
@@ -289,8 +349,10 @@ class DataBaseManager:
             existing.display_name = display_name
             existing.status = status
             existing.last_attempt_at = datetime.utcnow()
-            existing.last_success_at = last_success_at
-            existing.last_error = last_error
+            if last_success_at is not None or existing.last_success_at is None:
+                existing.last_success_at = last_success_at
+            if last_error is not None or status != models.DataSourceStatus.FAILED:
+                existing.last_error = last_error
             existing.source_metadata = metadata or {}
             await session.flush()
             await session.refresh(existing)
