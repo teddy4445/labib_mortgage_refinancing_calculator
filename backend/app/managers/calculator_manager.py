@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from backend.app.core.config import Settings
+from backend.app.domain.costs import calculate_refinance_cost_breakdown
 from backend.app.domain import calculate_monthly_payment, calculate_total_monthly_payment
 from backend.app.domain.analysis import build_recommendation_outcome
+from backend.app.domain.market_data.models import MortgageRateBucketRecord
 from backend.app.domain.exceptions import DomainError, MissingMarketInputError
 from backend.app.domain.models import MarketContext, MortgageTrack, TrackType
 from backend.app.domain.scenarios import (
@@ -40,6 +42,7 @@ from backend.app.schemas import (
     RefinanceCostComponentView,
     RefinanceOffer,
     ScenarioView,
+    TrackPenaltyBreakdownView,
     TrackInput,
     TrackPaymentBreakdown,
 )
@@ -51,6 +54,15 @@ PHASE_3_ENGINE_VERSION = "phase3-scenarios-v1"
 
 class CalculatorManager:
     def __init__(self, settings: Settings | None = None) -> None:
+        self._default_advisor_fee = (
+            settings.refinance_default_advisor_fee if settings is not None else Decimal("7000")
+        )
+        self._default_bank_fee = (
+            settings.refinance_default_bank_fee if settings is not None else Decimal("3500")
+        )
+        self._default_appraisal_fee = (
+            settings.refinance_default_appraisal_fee if settings is not None else Decimal("2500")
+        )
         self._annual_discount_rate = (
             settings.analysis_default_annual_discount_rate if settings is not None else Decimal("4.0")
         )
@@ -81,12 +93,30 @@ class CalculatorManager:
             as_of=market_inputs.as_of,
         )
 
+    def _to_market_rate_records(self, market_inputs: MarketInputs | None) -> list[MortgageRateBucketRecord]:
+        if market_inputs is None:
+            return []
+        return [
+            MortgageRateBucketRecord(
+                effective_date=item.effective_date,
+                track_family=item.track_family,
+                bucket_code=item.bucket_code,
+                remaining_months_min=item.remaining_months_min,
+                remaining_months_max=item.remaining_months_max,
+                annual_rate_percent=item.annual_rate_percent,
+                source_key=item.source_key or "request_payload",
+            )
+            for item in market_inputs.mortgage_rate_buckets
+        ]
+
     def _to_domain_track(self, track: TrackInput) -> MortgageTrack:
         return MortgageTrack(
+            track_id=track.track_id,
             label=track.label,
             track_type=TrackType.from_raw(track.track_type),
             outstanding_balance=track.outstanding_balance,
             current_rate=track.current_rate,
+            original_rate=track.original_rate,
             remaining_term_months=track.remaining_term_months,
             linkage_type=track.linkage_type,
             rate_type=track.rate_type,
@@ -96,6 +126,7 @@ class CalculatorManager:
             prepayment_penalty_rule=track.prepayment_penalty_rule,
             original_cpi=track.original_cpi,
             bank_margin=track.bank_margin,
+            years_since_origination=track.years_since_origination,
         )
 
     def _to_domain_tracks(self, tracks: list[TrackInput]) -> list[MortgageTrack]:
@@ -161,59 +192,43 @@ class CalculatorManager:
         *,
         mortgage: MortgageInput,
         offer: RefinanceOffer,
+        refinanced_tracks: list[MortgageTrack],
+        market_context: MarketContext,
+        market_rate_records: list[MortgageRateBucketRecord],
         allocation_ratio: Decimal = Decimal("1"),
-        refinanced_track_labels: list[str] | None = None,
     ) -> RefinanceCostBreakdown:
-        advisor_fee = mortgage.advisor_cost * allocation_ratio
-        bank_fee = mortgage.bank_cost * allocation_ratio
-        appraisal_fee = mortgage.appraisal_cost * allocation_ratio
-        legacy_other_costs = offer.upfront_costs * allocation_ratio
-        prepayment_penalty_total = mortgage.prepayment_fee * allocation_ratio
-        warning_codes = ["LEGACY_COST_BREAKDOWN_USED"]
-        metadata = {"allocation_ratio": str(allocation_ratio)}
-        if allocation_ratio != Decimal("1"):
-            warning_codes.append("PARTIAL_COSTS_ALLOCATED_PRO_RATA")
-            metadata["allocation_method"] = "balance_pro_rata"
-
-        track_penalties = []
-        if prepayment_penalty_total > 0:
-            track_penalties.append(
-                {
-                    "track_labels": refinanced_track_labels or [],
-                    "amount": str(self._quantize(prepayment_penalty_total)),
-                    "source": "legacy_aggregated_input",
-                }
-            )
-
-        total_refinance_cost = advisor_fee + bank_fee + appraisal_fee + legacy_other_costs + prepayment_penalty_total
-        return RefinanceCostBreakdown(
-            advisor_fee=CostComponent(
-                amount=advisor_fee,
-                source="user_input" if mortgage.advisor_cost > 0 else "not_provided",
-                included=advisor_fee > 0,
-            ),
-            bank_fee=CostComponent(
-                amount=bank_fee,
-                source="user_input" if mortgage.bank_cost > 0 else "not_provided",
-                included=bank_fee > 0,
-            ),
-            appraisal_fee=CostComponent(
-                amount=appraisal_fee,
-                source="user_input" if mortgage.appraisal_cost > 0 else "not_provided",
-                included=appraisal_fee > 0,
-            ),
-            legacy_other_costs=CostComponent(
-                amount=legacy_other_costs,
-                source="legacy_upfront_costs_input" if offer.upfront_costs > 0 else "not_provided",
-                included=legacy_other_costs > 0,
-            ),
-            prepayment_penalty_total=prepayment_penalty_total,
-            track_penalties=track_penalties,
-            total_refinance_cost=total_refinance_cost,
-            source="legacy_inputs_fallback",
-            warning_codes=warning_codes,
-            metadata=metadata,
+        costs = calculate_refinance_cost_breakdown(
+            tracks=refinanced_tracks,
+            market_context=market_context,
+            market_rate_records=market_rate_records,
+            years_since_origination=mortgage.years_since_origination,
+            advisor_fee_override=mortgage.advisor_cost if mortgage.advisor_cost > 0 else None,
+            bank_fee_override=mortgage.bank_cost if mortgage.bank_cost > 0 else None,
+            appraisal_included=mortgage.appraisal_required or mortgage.appraisal_cost > 0,
+            appraisal_amount=mortgage.appraisal_cost if mortgage.appraisal_cost > 0 else None,
+            additional_costs=offer.upfront_costs,
+            aggregated_prepayment_fee_override=mortgage.prepayment_fee if mortgage.prepayment_fee > 0 else None,
+            default_advisor_fee=self._default_advisor_fee,
+            default_bank_fee=self._default_bank_fee,
+            default_appraisal_fee=self._default_appraisal_fee,
+            allocation_ratio=allocation_ratio,
         )
+        if allocation_ratio != Decimal("1"):
+            warning_codes = sorted({*costs.warning_codes, "PARTIAL_COSTS_ALLOCATED_PRO_RATA"})
+            metadata = {**costs.metadata, "allocation_method": "balance_pro_rata"}
+            return RefinanceCostBreakdown(
+                advisor_fee=costs.advisor_fee,
+                bank_fee=costs.bank_fee,
+                appraisal_fee=costs.appraisal_fee,
+                legacy_other_costs=costs.legacy_other_costs,
+                prepayment_penalty_total=costs.prepayment_penalty_total,
+                track_penalties=costs.track_penalties,
+                total_refinance_cost=costs.total_refinance_cost,
+                source=costs.source,
+                warning_codes=warning_codes,
+                metadata=metadata,
+            )
+        return costs
 
     def _build_refinance_track(
         self,
@@ -290,6 +305,7 @@ class CalculatorManager:
         *,
         payload: CalculationRequest,
         market_context: MarketContext,
+        market_rate_records: list[MortgageRateBucketRecord],
         current_tracks: list[MortgageTrack],
         current_total_monthly_payment: Decimal,
         current_total_adjusted_balance: Decimal,
@@ -298,7 +314,9 @@ class CalculatorManager:
         full_costs = self._build_refinance_cost_breakdown(
             mortgage=payload.mortgage,
             offer=payload.proposed_full_refinance,
-            refinanced_track_labels=[track.label for track in current_tracks],
+            refinanced_tracks=current_tracks,
+            market_context=market_context,
+            market_rate_records=market_rate_records,
         )
         refinance_track = self._build_refinance_track(
             offer=payload.proposed_full_refinance,
@@ -326,6 +344,7 @@ class CalculatorManager:
         *,
         payload: CalculationRequest,
         market_context: MarketContext,
+        market_rate_records: list[MortgageRateBucketRecord],
         current_tracks: list[MortgageTrack],
         current_total_monthly_payment: Decimal,
         current_total_adjusted_balance: Decimal,
@@ -350,8 +369,10 @@ class CalculatorManager:
             cost_breakdown = self._build_refinance_cost_breakdown(
                 mortgage=payload.mortgage,
                 offer=payload.proposed_partial_refinance,
+                refinanced_tracks=subset_tracks,
+                market_context=market_context,
+                market_rate_records=market_rate_records,
                 allocation_ratio=allocation_ratio,
-                refinanced_track_labels=[track.label for track in subset_tracks],
             )
             refinanced_track = self._build_refinance_track(
                 offer=payload.proposed_partial_refinance,
@@ -397,7 +418,30 @@ class CalculatorManager:
             appraisal_fee=self._cost_component_view(costs.appraisal_fee),
             legacy_other_costs=self._cost_component_view(costs.legacy_other_costs),
             prepayment_penalty_total=self._quantize(costs.prepayment_penalty_total),
-            track_penalties=costs.track_penalties,
+            track_penalties=[
+                TrackPenaltyBreakdownView(
+                    track_id=item.track_id,
+                    track_label=item.track_label,
+                    applicable=item.applicable,
+                    reason_code=item.reason_code,
+                    remaining_months=item.remaining_months,
+                    market_rate_bucket=item.market_rate_bucket,
+                    market_annual_rate_percent=item.market_annual_rate_percent,
+                    contract_annual_rate_percent=item.contract_annual_rate_percent,
+                    market_monthly_rate=item.market_monthly_rate,
+                    contract_monthly_rate=item.contract_monthly_rate,
+                    pv_market_nis=self._quantize(item.pv_market_nis) if item.pv_market_nis is not None else None,
+                    pv_contract_nis=self._quantize(item.pv_contract_nis) if item.pv_contract_nis is not None else None,
+                    economic_loss_nis=self._quantize(item.economic_loss_nis) if item.economic_loss_nis is not None else None,
+                    discount_factor=item.discount_factor,
+                    penalty_before_discount_nis=self._quantize(item.penalty_before_discount_nis),
+                    penalty_after_discount_nis=self._quantize(item.penalty_after_discount_nis),
+                    rounded_penalty_nis=self._quantize(item.rounded_penalty_nis),
+                    warning_codes=item.warning_codes,
+                    metadata=item.metadata,
+                )
+                for item in costs.track_penalties
+            ],
             total_refinance_cost=self._quantize(costs.total_refinance_cost),
             source=costs.source,
             warning_codes=costs.warning_codes,
@@ -561,6 +605,7 @@ class CalculatorManager:
 
     def evaluate_refinance(self, payload: CalculationRequest) -> RecommendationResult:
         market_context = self._to_market_context(payload.market_inputs)
+        market_rate_records = self._to_market_rate_records(payload.market_inputs)
         current_tracks = self._to_domain_tracks(payload.mortgage.tracks)
         current_domain_summary = calculate_total_monthly_payment(tracks=current_tracks, context=market_context)
         current_summary = self.summarize_current_mortgage(payload.mortgage, payload.market_inputs)
@@ -576,6 +621,7 @@ class CalculatorManager:
         full_refinance = self._evaluate_full_scenario(
             payload=payload,
             market_context=market_context,
+            market_rate_records=market_rate_records,
             current_tracks=current_tracks,
             current_total_monthly_payment=current_domain_summary.total_monthly_payment,
             current_total_adjusted_balance=current_domain_summary.total_adjusted_balance,
@@ -609,6 +655,7 @@ class CalculatorManager:
             return self.evaluate_refinance(payload)
 
         market_context = self._to_market_context(payload.market_inputs)
+        market_rate_records = self._to_market_rate_records(payload.market_inputs)
         current_tracks = self._to_domain_tracks(payload.mortgage.tracks)
         current_domain_summary = calculate_total_monthly_payment(tracks=current_tracks, context=market_context)
         current_summary = self.summarize_current_mortgage(payload.mortgage, payload.market_inputs)
@@ -624,6 +671,7 @@ class CalculatorManager:
         full_refinance = self._evaluate_full_scenario(
             payload=payload,
             market_context=market_context,
+            market_rate_records=market_rate_records,
             current_tracks=current_tracks,
             current_total_monthly_payment=current_domain_summary.total_monthly_payment,
             current_total_adjusted_balance=current_domain_summary.total_adjusted_balance,
@@ -632,6 +680,7 @@ class CalculatorManager:
         partial_scenarios = self._evaluate_partial_scenarios(
             payload=payload,
             market_context=market_context,
+            market_rate_records=market_rate_records,
             current_tracks=current_tracks,
             current_total_monthly_payment=current_domain_summary.total_monthly_payment,
             current_total_adjusted_balance=current_domain_summary.total_adjusted_balance,

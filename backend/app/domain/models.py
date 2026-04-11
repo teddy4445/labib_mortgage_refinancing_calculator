@@ -53,14 +53,17 @@ class MortgageTrack:
     outstanding_balance: Decimal
     current_rate: Decimal | None
     remaining_term_months: int
+    track_id: str | None = None
     linkage_type: str | None = None
     rate_type: str | None = None
     reset_interval: str | None = None
     next_reset_date: date | None = None
     amortization_method: str | None = None
     prepayment_penalty_rule: str | None = None
+    original_rate: Decimal | None = None
     original_cpi: Decimal | None = None
     bank_margin: Decimal | None = None
+    years_since_origination: Decimal | None = None
 
 
 @dataclass(frozen=True)

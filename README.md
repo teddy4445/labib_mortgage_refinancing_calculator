@@ -91,14 +91,50 @@ Important notes:
 - Market inputs are still injected explicitly for now:
   - `boi_base_rate` is required for prime tracks
   - `current_cpi` is required for CPI-linked tracks
-- Phase 2+ items are intentionally deferred:
-  - advisor fees
-  - bank fees
-  - Regulation 116 penalty engine
-  - scenario generation
-  - recommendation ranking
-  - market-data connectors
+- The Phase 1 layer intentionally stays focused on current-payment math. Later concerns such as scenario ranking and market-data ingestion are layered on top of it rather than mixed into the formula helpers.
 - Monetary values are calculated at higher precision internally and rounded only at output boundaries.
+
+### Phase 2 refinance cost and Regulation 116 penalty engine
+
+The backend now includes a dedicated refinance-cost engine for structured fee aggregation and per-track prepayment-penalty calculations.
+
+Implemented in Phase 2:
+
+- advisor fee as a fixed professional fee:
+  - default `7000 NIS`
+  - override supported via explicit user quote
+- bank fee as a separate component:
+  - default `3500 NIS`
+  - override supported via explicit user quote
+- appraisal as a separate optional component:
+  - excluded when not applicable
+  - explicit amount or configured default when included
+- Regulation 116-style per-track prepayment penalty engine:
+  - fixed non-linked tracks supported
+  - fixed linked tracks supported
+  - prime tracks explicitly return no penalty
+  - adjustable tracks are computed only when reset metadata is sufficient
+- structured refinance cost breakdown:
+  - per-component fee metadata
+  - per-track penalty breakdown
+  - total prepayment penalty
+  - total refinance cost
+
+Important notes:
+
+- The penalty engine reuses the Phase 1 compound annual-to-monthly conversion and amortization helpers.
+- Regulation 116 uses the remaining payment stream and a present-value comparison:
+  - `PV_market`
+  - `PV_contract`
+- The code uses the explicit economic-loss convention:
+  - borrower penalty is charged only when `PV_market - PV_contract` is positive
+  - otherwise the penalty is floored to zero
+- The statutory age-based discount factor is applied after economic loss is computed:
+  - `< 3 years` => `1.00`
+  - `>= 3 and < 5 years` => `0.80`
+  - `>= 5 years` => `0.70`
+- Mortgage-rate bucket inputs are injected or resolved from Phase 4 persisted market snapshots; the penalty engine does not fetch remote data directly.
+- If an adjustable track cannot be computed safely because reset metadata is missing, the backend returns structured warning metadata instead of pretending the track is penalty-free. A narrow legacy aggregated override path remains available only for those explicitly unsupported adjustable cases.
 
 ### Phase 3 scenario and recommendation engine
 
@@ -131,14 +167,14 @@ Important notes:
 
 - Phase 3 does not auto-trigger any refinance or follow-up workflow.
 - Recommendation text in the domain layer is token/code-based so the frontend can localize it later.
-- Phase 2 cost/penalty inputs are still using a documented legacy fallback when detailed structured cost engines are unavailable in the repo:
-  - `prepayment_fee`
-  - `advisor_cost`
-  - `bank_cost`
-  - `appraisal_cost`
-  - `upfront_costs`
+- Phase 3 now consumes the real Phase 2 refinance-cost breakdown:
+  - advisor fee
+  - bank fee
+  - appraisal fee
+  - per-track prepayment penalties
+  - explicit warning metadata for unsupported adjustable cases
 - Partial-refinance scenario generation is bounded and pruned when combinations exceed the configured safe threshold.
-- Market data is still injected as request inputs or recovered from stored payloads until Phase 4 ingestion is implemented.
+- Market data can be supplied directly in request payloads or enriched from persisted Phase 4 snapshots.
 
 ### Phase 4 market-data ingestion and snapshot layer
 
@@ -236,6 +272,15 @@ Or in Command Prompt:
 ```bat
 start-dev.bat
 ```
+
+What the launcher does:
+
+- creates `.env` from `.env.example` if needed
+- creates `.venv` if needed
+- installs backend requirements
+- starts the front-end static server on `http://127.0.0.1:8000`
+- starts the FastAPI backend on `http://127.0.0.1:8001`
+- waits for both services to respond before opening the browser
 
 ## Structure
 

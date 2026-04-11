@@ -122,6 +122,7 @@ def _analysis_readiness(
     mortgage: models.Mortgage,
     raw_track_details: dict[str, dict[str, Any]],
     market_inputs: MarketInputs | None,
+    years_since_origination: Decimal | None = None,
 ) -> AnalysisReadinessView:
     missing_flags: list[str] = []
 
@@ -132,6 +133,12 @@ def _analysis_readiness(
     has_linked_track = any(track.track_type in {"fixed_linked", "adjustable_linked"} for track in mortgage.tracks)
     if has_linked_track and (market_inputs is None or market_inputs.current_cpi is None):
         missing_flags.append("MISSING_CURRENT_CPI")
+    if any(track.track_type != "prime_floating" for track in mortgage.tracks) and (
+        market_inputs is None or not market_inputs.mortgage_rate_buckets
+    ):
+        missing_flags.append("MISSING_MORTGAGE_RATE_BUCKETS")
+    if any(track.track_type != "prime_floating" for track in mortgage.tracks) and years_since_origination is None:
+        missing_flags.append("MISSING_YEARS_SINCE_ORIGINATION")
 
     for track in mortgage.tracks:
         if track.track_type in {"fixed_linked", "adjustable_linked"}:
@@ -145,6 +152,17 @@ def _analysis_readiness(
             bank_margin = raw.get("bankMargin") or raw.get("bank_margin")
             if bank_margin in (None, ""):
                 missing_flags.append(f"MISSING_BANK_MARGIN:{track.label}")
+        if track.track_type in {"adjustable_non_linked", "adjustable_linked"}:
+            raw = raw_track_details.get(track.label, {})
+            if (raw.get("nextResetDate") or raw.get("next_reset_date")) in (None, ""):
+                missing_flags.append(f"MISSING_NEXT_RESET_DATE:{track.label}")
+            if (raw.get("resetInterval") or raw.get("reset_interval")) in (None, ""):
+                missing_flags.append(f"MISSING_RESET_INTERVAL:{track.label}")
+        if track.track_type != "prime_floating":
+            raw = raw_track_details.get(track.label, {})
+            original_rate = raw.get("originalRate") or raw.get("original_rate")
+            if original_rate in (None, "", 0) and track.track_type in {"adjustable_non_linked", "adjustable_linked"}:
+                missing_flags.append(f"MISSING_ORIGINAL_RATE:{track.label}")
 
     return AnalysisReadinessView(
         ready=not missing_flags,
@@ -478,7 +496,15 @@ async def latest_mortgage(
     raw_payload = mortgage.raw_payload if isinstance(mortgage.raw_payload, dict) else {}
     raw_track_details = _raw_track_details(raw_payload)
     market_inputs = await market_snapshot_service.resolve_market_inputs(_extract_market_inputs(raw_payload))
-    readiness = _analysis_readiness(mortgage=mortgage, raw_track_details=raw_track_details, market_inputs=market_inputs)
+    raw_basic = raw_payload.get("basic", {}) if isinstance(raw_payload.get("basic"), dict) else {}
+    years_since_origination = raw_basic.get("yearsSinceOrigin") or raw_basic.get("years_since_origination")
+    years_decimal = Decimal(str(years_since_origination)) if years_since_origination not in (None, "") else None
+    readiness = _analysis_readiness(
+        mortgage=mortgage,
+        raw_track_details=raw_track_details,
+        market_inputs=market_inputs,
+        years_since_origination=years_decimal,
+    )
     latest_analysis = _analysis_summary_from_run(await db_manager.get_latest_analysis_run(mortgage.id))
     mortgage_summary = _mortgage_summary_view(
         mortgage=mortgage,
@@ -507,7 +533,15 @@ async def dashboard_view(
     raw_track_details = _raw_track_details(raw_payload)
     raw_costs = raw_payload.get("costs", {}) if isinstance(raw_payload.get("costs"), dict) else {}
     market_inputs = await market_snapshot_service.resolve_market_inputs(_extract_market_inputs(raw_payload))
-    readiness = _analysis_readiness(mortgage=mortgage, raw_track_details=raw_track_details, market_inputs=market_inputs)
+    raw_basic = raw_payload.get("basic", {}) if isinstance(raw_payload.get("basic"), dict) else {}
+    years_since_origination = raw_basic.get("yearsSinceOrigin") or raw_basic.get("years_since_origination")
+    years_decimal = Decimal(str(years_since_origination)) if years_since_origination not in (None, "") else None
+    readiness = _analysis_readiness(
+        mortgage=mortgage,
+        raw_track_details=raw_track_details,
+        market_inputs=market_inputs,
+        years_since_origination=years_decimal,
+    )
     latest_analysis_run = await db_manager.get_latest_analysis_run(mortgage.id)
     persisted_analysis_summary = _analysis_summary_from_run(latest_analysis_run)
     mortgage_summary = _mortgage_summary_view(
@@ -543,14 +577,20 @@ async def dashboard_view(
         occupancy_status=mortgage.occupancy_status,
         prepayment_fee=Decimal(str(raw_costs.get("prepaymentFee", 0) or 0)),
         advisor_cost=Decimal(str(raw_costs.get("advisor", 0) or 0)),
-        bank_cost=Decimal(str((raw_costs.get("legalFee", 0) or 0) + (raw_costs.get("registration", 0) or 0))),
+        bank_cost=Decimal(str(raw_costs.get("bankFees", (raw_costs.get("legalFee", 0) or 0) + (raw_costs.get("registration", 0) or 0)) or 0)),
         appraisal_cost=Decimal(str(raw_costs.get("appraisal", 0) or 0)),
+        appraisal_required=bool(raw_costs.get("appraisalRequired", False)),
+        years_since_origination=years_decimal,
         tracks=[
             {
+                "track_id": str(track.id),
                 "label": track.label,
                 "track_type": track.track_type,
                 "outstanding_balance": track.outstanding_balance,
                 "current_rate": track.current_rate,
+                "original_rate": raw_track_details.get(track.label, {}).get("originalRate")
+                or raw_track_details.get(track.label, {}).get("original_rate")
+                or track.current_rate,
                 "remaining_term_months": track.remaining_term_months,
                 "linkage_type": track.linkage_type,
                 "rate_type": track.rate_type,
@@ -562,6 +602,7 @@ async def dashboard_view(
                 or raw_track_details.get(track.label, {}).get("original_cpi"),
                 "bank_margin": raw_track_details.get(track.label, {}).get("bankMargin")
                 or raw_track_details.get(track.label, {}).get("bank_margin"),
+                "years_since_origination": years_decimal,
             }
             for track in mortgage.tracks
         ],

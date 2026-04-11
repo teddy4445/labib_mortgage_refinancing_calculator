@@ -48,10 +48,12 @@ class PasswordResetConfirm(BaseModel):
 
 
 class TrackInput(BaseModel):
+    track_id: str | None = None
     label: str
     track_type: str
     outstanding_balance: Decimal = Field(gt=0)
     current_rate: Decimal | None = Field(default=None, ge=0)
+    original_rate: Decimal | None = Field(default=None, ge=0)
     remaining_term_months: int = Field(ge=1)
     linkage_type: str | None = None
     rate_type: str | None = None
@@ -61,12 +63,24 @@ class TrackInput(BaseModel):
     prepayment_penalty_rule: str | None = None
     original_cpi: Decimal | None = Field(default=None, gt=0)
     bank_margin: Decimal | None = None
+    years_since_origination: Decimal | None = Field(default=None, ge=0)
+
+
+class MortgageRateBucketInput(BaseModel):
+    effective_date: date
+    track_family: str = "general"
+    bucket_code: str
+    remaining_months_min: int = Field(ge=1)
+    remaining_months_max: int = Field(ge=1)
+    annual_rate_percent: Decimal = Field(ge=0)
+    source_key: str | None = None
 
 
 class MarketInputs(BaseModel):
     boi_base_rate: Decimal | None = Field(default=None, ge=0)
     current_cpi: Decimal | None = Field(default=None, gt=0)
     as_of: date | None = None
+    mortgage_rate_buckets: list[MortgageRateBucketInput] = Field(default_factory=list)
 
 
 class MortgageInput(BaseModel):
@@ -80,6 +94,8 @@ class MortgageInput(BaseModel):
     advisor_cost: Decimal = Field(default=Decimal("0"), ge=0)
     bank_cost: Decimal = Field(default=Decimal("0"), ge=0)
     appraisal_cost: Decimal = Field(default=Decimal("0"), ge=0)
+    appraisal_required: bool = False
+    years_since_origination: Decimal | None = Field(default=None, ge=0)
     tracks: list[TrackInput] = Field(min_length=1)
 
 
@@ -136,13 +152,35 @@ class RefinanceCostComponentView(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class TrackPenaltyBreakdownView(BaseModel):
+    track_id: str
+    track_label: str
+    applicable: bool
+    reason_code: str
+    remaining_months: int
+    market_rate_bucket: str | None = None
+    market_annual_rate_percent: Decimal | None = None
+    contract_annual_rate_percent: Decimal | None = None
+    market_monthly_rate: Decimal | None = None
+    contract_monthly_rate: Decimal | None = None
+    pv_market_nis: Decimal | None = None
+    pv_contract_nis: Decimal | None = None
+    economic_loss_nis: Decimal | None = None
+    discount_factor: Decimal | None = None
+    penalty_before_discount_nis: Decimal
+    penalty_after_discount_nis: Decimal
+    rounded_penalty_nis: Decimal
+    warning_codes: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class RefinanceCostBreakdownView(BaseModel):
     advisor_fee: RefinanceCostComponentView
     bank_fee: RefinanceCostComponentView
     appraisal_fee: RefinanceCostComponentView
     legacy_other_costs: RefinanceCostComponentView
     prepayment_penalty_total: Decimal
-    track_penalties: list[dict[str, Any]] = Field(default_factory=list)
+    track_penalties: list[TrackPenaltyBreakdownView] = Field(default_factory=list)
     total_refinance_cost: Decimal
     source: str
     warning_codes: list[str] = Field(default_factory=list)

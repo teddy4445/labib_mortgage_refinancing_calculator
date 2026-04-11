@@ -59,3 +59,23 @@ class MarketDataNotFoundError(MarketDataError):
 
 class MarketDataBucketLookupError(MarketDataError):
     """Raised when a mortgage-rate bucket cannot be resolved deterministically."""
+
+
+class CostEngineError(DomainError):
+    """Base exception for refinance cost and penalty calculations."""
+
+
+class MissingPenaltyInputError(CostEngineError, MissingFieldError):
+    """Raised when a penalty-applicable track is missing required inputs."""
+
+
+class InvalidYearsSinceOriginationError(CostEngineError, ValidationError):
+    """Raised when the years-since-origination input is invalid."""
+
+
+class UnsupportedAdjustablePenaltyCaseError(CostEngineError):
+    """Raised when an adjustable-track penalty cannot be computed safely."""
+
+
+class PaymentStreamError(CostEngineError, ValidationError):
+    """Raised when a remaining-payment stream cannot be built or validated."""

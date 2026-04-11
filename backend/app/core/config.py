@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     analytics_enabled: bool = True
+    refinance_default_advisor_fee: Decimal = Decimal("7000")
+    refinance_default_bank_fee: Decimal = Decimal("3500")
+    refinance_default_appraisal_fee: Decimal = Decimal("2500")
     analysis_default_annual_discount_rate: Decimal = Decimal("4.0")
     analysis_prime_modest_annual_increase: Decimal = Decimal("0.25")
     analysis_partial_subset_limit: int = 64

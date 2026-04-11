@@ -69,6 +69,7 @@ async def test_query_services_return_latest_market_data_and_support_calculator_i
     assert inflation[0].horizon_months == 12
     assert market_inputs.boi_base_rate == Decimal("4.5")
     assert market_inputs.current_cpi == Decimal("115.8")
+    assert market_inputs.as_of is not None
 
     summary = calculator_manager.summarize_current_mortgage(
         MortgageInput(

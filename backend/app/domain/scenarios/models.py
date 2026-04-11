@@ -7,6 +7,7 @@ from typing import Any
 
 from backend.app.domain.analysis.breakeven import BreakEvenAnalysis
 from backend.app.domain.analysis.npv import NpvAnalysis
+from backend.app.domain.costs.models import CostComponent, RefinanceCostBreakdown
 from backend.app.domain.models import MortgageTrack
 
 
@@ -14,28 +15,6 @@ class ScenarioType(str, Enum):
     STATUS_QUO = "status_quo"
     FULL_REFINANCE = "full_refinance"
     PARTIAL_REFINANCE = "partial_refinance"
-
-
-@dataclass(frozen=True)
-class CostComponent:
-    amount: Decimal
-    source: str
-    included: bool = True
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class RefinanceCostBreakdown:
-    advisor_fee: CostComponent
-    bank_fee: CostComponent
-    appraisal_fee: CostComponent
-    legacy_other_costs: CostComponent
-    prepayment_penalty_total: Decimal
-    track_penalties: list[dict[str, Any]] = field(default_factory=list)
-    total_refinance_cost: Decimal = Decimal("0")
-    source: str = "legacy_inputs"
-    warning_codes: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
