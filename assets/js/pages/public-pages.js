@@ -28,18 +28,18 @@
     return [
       {
         icon: "compare",
-        title: "1. מעלים את מבנה המשכנתא הקיים",
-        body: "יתרות, מסלולים, ריביות, תחנות איפוס, עלויות יציאה והעדפות משק בית, בתוך אשף חינמי אחד."
+        title: "1. את/ה מזינים, המערכת מעבדת",
+        body: "יתרות נוכחיות, ריביות, עלויות וכל המידע החשוב על התיק שלך - בשלב אחד פשוט וברור."
       },
       {
         icon: "ai",
-        title: "2. המנוע ה-AI-driven בונה השוואה",
-        body: "המערכת משווה בין שמירה על המצב הקיים, מחזור מלא ומחזור חלקי, תחת הנחות שוק ותרחישי סיכון."
+        title: "2. ניתוח מדעי, לא שיווקי",
+        body: "בדיקה עמוקה של כל אפשרות תחת הנחות בשוק אמיתיות, ללא דחיפה מכירות או הטיות."
       },
       {
         icon: "shield",
-        title: "3. מקבלים המלצה עם הסבר",
-        body: "החיסכון, break-even, הדחיפות, הסיכונים והמגבלות מוצגים יחד עם כתב ויתור ברור."
+        title: "3. המלצה שאת/ה בשליטה",
+        body: "תשובה ברורה עם הסבר מלא - בלי לחץ, בלי התחייבות, ובלי הפתעות בהמשך."
       }
     ].map(featureCard).join("");
   }
@@ -49,25 +49,25 @@
       '<section class="surface-banner mt-20 rounded-[36px] border border-line p-8 shadow-panel">',
       '  <div class="grid gap-8 lg:grid-cols-[0.95fr,1.05fr] lg:items-center">',
       '    <div>',
-      '      <h2 class="text-3xl font-extrabold text-ink">כך נראה מסך ההחלטה אחרי סיום האשף</h2>',
-      '      <p class="mt-4 text-base leading-8 text-slateText">הדוגמה ממחישה איך המערכת מציגה המלצה מבוססת AI, חיסכון נטו, רמת דחיפות ונקודת איזון. רק לאחר אישור עניין מצד הלקוח אפשר להעביר בקשה להמשך טיפול.</p>',
+      '      <h2 class="text-3xl font-extrabold text-ink">כך נראית ההמלצה אחרי סיום האשף</h2>',
+      '      <p class="mt-4 text-base leading-8 text-slateText">המערכת מציגה בבירור: מה ההמלצה, כמה אפשר לחסוך, מתי תתפרע את העלות, ומה רמת הסיכון. ורק לאחר אישור עניין משלך, אפשר להעביר בקשה להמשך טיפול עם מומחה.</p>',
       '      <div class="mt-6 grid gap-3 sm:grid-cols-3">',
       '        <div class="metric-slab rounded-[24px] px-4 py-4"><p class="text-sm font-semibold text-slateText">תשלום כיום</p><p class="mt-2 text-2xl font-extrabold text-ink tabular-nums">' + App.Format.currency(7640) + "</p></div>",
       '        <div class="metric-slab rounded-[24px] px-4 py-4"><p class="text-sm font-semibold text-slateText">תשלום מוצע</p><p class="mt-2 text-2xl font-extrabold text-ink tabular-nums">' + App.Format.currency(6980) + "</p></div>",
-      '        <div class="metric-slab rounded-[24px] px-4 py-4"><p class="text-sm font-semibold text-slateText">Break-even</p><p class="mt-2 text-2xl font-extrabold text-ink tabular-nums">17 חודשים</p></div>',
+      '        <div class="metric-slab rounded-[24px] px-4 py-4"><p class="text-sm font-semibold text-slateText">עד איזון</p><p class="mt-2 text-2xl font-extrabold text-ink tabular-nums">17 חודשים</p></div>',
       "      </div>",
       "    </div>",
       '    <div class="glass-panel rounded-[32px] border border-line p-6 shadow-panel">',
       '      <div class="flex items-start justify-between gap-4">',
-      '        <div><p class="text-sm font-semibold text-slateText">המלצת מערכת</p><h3 class="mt-2 text-2xl font-extrabold text-ink">מחזור חלקי עדיף כעת</h3></div>',
+      '        <div><p class="text-sm font-semibold text-slateText">המלצת המערכת</p><h3 class="mt-2 text-2xl font-extrabold text-ink">מחזור חלקי - הכי חכם כעת</h3></div>',
       "      </div>",
       '      <div class="mt-6 grid gap-4 sm:grid-cols-2">',
-      App.UI.metricCard({ label: "חיסכון חודשי", value: App.Format.currency(660), note: "כולל השוואה מול המסלולים הקיימים" }),
-      App.UI.metricCard({ label: "חיסכון מצטבר", value: App.Format.currency(184300), note: "אחרי עלויות מעבר משוערות" }),
-      App.UI.metricCard({ label: "ירידת סיכון", value: "74 ← 48", note: "צמצום חשיפה לפריים ולמדד" }),
-      App.UI.metricCard({ label: "סטטוס", value: "ממתין לאישור לקוח", note: "אין מימוש אוטומטי של ההמלצה" }),
+      App.UI.metricCard({ label: "חיסכון חודשי", value: App.Format.currency(660), note: "בהשוואה לתיק הקיים" }),
+      App.UI.metricCard({ label: "חיסכון מצטבר", value: App.Format.currency(184300), note: "אחרי כל העלויות" }),
+      App.UI.metricCard({ label: "צמצום סיכון", value: "מ-74 ל-48", note: "פחות חשיפה לשינויים" }),
+      App.UI.metricCard({ label: "סטטוס", value: "מחכה להחלטתך", note: "אתה בשליטה מלאה" }),
       "      </div>",
-      '      <div class="mt-6 rounded-[24px] border border-line bg-white px-5 py-4 text-sm leading-7 text-slateText">אם נמצאה חלופה טובה יותר, המערכת מבקשת אישור עניין בלבד ומעבירה את הבקשה לצוות להמשך טיפול.</div>',
+      '      <div class="mt-6 rounded-[24px] border border-line bg-white px-5 py-4 text-sm leading-7 text-slateText">אם נמצאת חלופה טובה יותר, אנחנו מציגים אותה - ואתה/את מחליטה/ת אם להמשיך.</div>',
       "    </div>",
       "  </div>",
       "</section>"
@@ -80,15 +80,15 @@
         '<section class="hero-shell hero-grid overflow-hidden rounded-[40px] border border-line px-6 py-10 shadow-panel sm:px-8 lg:px-10">',
         '  <div class="grid gap-10 lg:grid-cols-[1.08fr,0.92fr] lg:items-center">',
         '    <div>',
-        '      <h1 class="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-ink sm:text-5xl lg:text-6xl">האם כדאי למחזר את המשכנתא עכשיו?</h1>',
-        '      <p class="mt-5 max-w-2xl text-lg leading-8 text-slateText">Labib הוא כלי החלטה AI-driven למחזור ומעקב של משכנתא קיימת. הוא משווה בין התיק הנוכחי לחלופות שוק, מסביר חיסכון נטו, סיכון, דחיפות ו-break-even, ומבהיר מתי נדרש ייעוץ אנושי לפני פעולה.</p>',
+        '      <h1 class="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-ink sm:text-5xl lg:text-6xl">למחזר או לא למחזר, זאת השאלה</h1>',
+        '      <p class="mt-5 max-w-2xl text-lg leading-8 text-slateText">משכנתה היא החלטה חשובה. המוניטור מסדר את התמונה: מנתח את התיק שלך, משווה אפשרויות ממשיות, ומציג בבהירות - מה כדאי לעשות. ללא טריקים, ללא לחץ. רק מידע שאת/ה יכול/ה להאמין לו.</p>',
         '      <div class="mt-6 grid gap-3 sm:grid-cols-3">',
-        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("compare") + '</div><p class="mt-4 text-sm font-semibold text-ink">השוואה בין תיק קיים, מחזור מלא ומחזור חלקי</p></div>',
-        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("ai") + '</div><p class="mt-4 text-sm font-semibold text-ink">ניתוח AI-driven עם הסבר, הנחות ודחיפות</p></div>',
-        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("shield") + '</div><p class="mt-4 text-sm font-semibold text-ink">כלי המלצה בלבד, לא תחליף לייעוץ מקצועי</p></div>',
+        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("compare") + '</div><p class="mt-4 text-sm font-semibold text-ink">השוואה שקופה - שמור, מחזור מלא, או מחזור חלקי</p></div>',
+        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("ai") + '</div><p class="mt-4 text-sm font-semibold text-ink">הבנה לפני החלטה - רואים הכל בצורה ברורה</p></div>',
+        '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("shield") + '</div><p class="mt-4 text-sm font-semibold text-ink">בשליטתך - אנחנו מציגים, את/ה מחליטה/ת</p></div>',
         "      </div>",
         '      <div class="mt-8 flex flex-wrap gap-3">',
-        '        <a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-7 py-3.5 text-sm font-bold text-white">נסו את האשף החינמי</a>',
+        '        <a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-7 py-3.5 text-sm font-bold text-white">נסה את האשף החינמי</a>',
         '        <a href="' + App.Helpers.link("pages/login.html") + '" class="rounded-full border border-line px-7 py-3.5 text-sm font-bold text-ink">כניסה לחשבון קיים</a>',
         "      </div>",
         "    </div>",
@@ -99,19 +99,19 @@
         "</section>",
         '<section id="how-it-works" class="mt-20">',
         '  <div class="mb-8 flex items-end justify-between gap-4">',
-        '    <div><h2 class="text-3xl font-bold text-ink">אשף אחד, ניתוח אחד, החלטה ברורה יותר</h2></div>',
+        '    <div><h2 class="text-3xl font-bold text-ink">שלושה שלבים פשוטים להחלטה חכמה</h2></div>',
         "  </div>",
         '  <div class="grid gap-6 lg:grid-cols-3">' + processCards() + "</div>",
         "</section>",
         examplePanel(),
         '<section id="benefits" class="mt-20 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">',
         '  <div class="content-card rounded-[32px] border border-line p-8">',
-        '    <h2 class="text-3xl font-extrabold text-ink">יותר בהירות, פחות רעש</h2>',
-        '    <p class="mt-4 text-base leading-8 text-slateText">הממשק בנוי ככלי עבודה פיננסי: מספרים גדולים, כרטיסים ברורים, הנחות גלויות והפרדה בין תוצאות, סיכון והשלבים הבאים. ההמלצות מבוססות AI, אך תמיד מוצגות עם מגבלות וכתב ויתור.</p>',
+        '    <h2 class="text-3xl font-extrabold text-ink">בהירות מוחלטת, קול אחד</h2>',
+        '    <p class="mt-4 text-base leading-8 text-slateText">הממשק בנוי כמו כלי עבודה פיננסי אמיתי: מספרים גדולים וברורים, כרטיסי מידע חכמים, הנחות שאתה רואה, וקו ברור בין: מה ההמלצה, מה הסיכון, מה הצעדים הבאים. תמיד עם הסתייגויות ברורות.</p>',
         '    <div class="mt-8 space-y-4">',
-        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">חיסכון חודשי מזוהה</span><span class="text-2xl font-bold tabular-nums text-ink">₪660</span></div></div>',
-        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">Break-even משוער</span><span class="text-2xl font-bold tabular-nums text-ink">17 חודשים</span></div></div>',
-        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">מודל השוואה</span><span class="text-2xl font-bold text-ink">מלא + חלקי</span></div></div>',
+        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">חיסכון חודשי פוטנציאלי</span><span class="text-2xl font-bold tabular-nums text-ink">₪660</span></div></div>',
+        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">זמן להחזר ההשקעה</span><span class="text-2xl font-bold tabular-nums text-ink">17 חודשים</span></div></div>',
+        '      <div class="metric-slab rounded-[24px] p-5"><div class="flex items-center justify-between"><span class="text-sm font-semibold text-slateText">דרך בדיקה</span><span class="text-2xl font-bold text-ink">מלא + חלקי</span></div></div>',
         "    </div>",
         "  </div>",
         '  <div class="space-y-6">' + data.benefits.map(function (item, index) {
@@ -123,13 +123,13 @@
         }).join("") + "</div>",
         "</section>",
         '<section id="faq" class="mt-20">',
-        '  <div class="mb-8"><h2 class="text-3xl font-bold text-ink">שאלות נפוצות לפני שמתחילים</h2></div>',
+        '  <div class="mb-8"><h2 class="text-3xl font-bold text-ink">שאלות נפוצות - קודם שמתחילים</h2></div>',
         App.UI.accordion(data.faq),
         "</section>",
         '<section class="mt-20 content-card rounded-[32px] border border-line p-8">',
         '  <div class="grid gap-6 lg:grid-cols-[1fr,auto] lg:items-center">',
-        '    <div><h2 class="text-3xl font-bold text-ink">רוצים לבדוק את המשכנתא הקיימת ללא עלות?</h2><p class="mt-3 max-w-2xl text-base leading-7 text-slateText">האשף החינמי אוסף את נתוני המשכנתא, מציג המלצה AI-driven, ורק בסוף יוצר את החשבון האישי כדי לשמור את התוצאות ולעקוב אחריהן לאורך זמן.</p></div>',
-        '    <div><a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">התחלת אשף חינמי</a></div>',
+        '    <div><h2 class="text-3xl font-bold text-ink">רוצה לבדוק את המשכנתה שלך ללא עלות?</h2><p class="mt-3 max-w-2xl text-base leading-7 text-slateText">האשף החינמי אוסף את כל הנתונים, מציג המלצה ברורה, ורק בסוף - אם את/ה רוצה - יוצרים חשבון כדי לשמור את התוצאות ולעקוב לאורך זמן.</p></div>',
+        '    <div><a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">התחל את האשף</a></div>',
         "  </div>",
         "</section>"
       ].join("");
@@ -139,44 +139,44 @@
   App.Pages.consent = function (root) {
     root.innerHTML = [
       App.UI.renderPageHeader({
-        eyebrow: "legal disclaimer",
+        eyebrow: "הסכמה משפטית",
         title: "כתב ויתור והסכמה",
-        description: "העמוד מרכז נוסח משפטי ראשוני עד לפרסום המסמך המלא."
+        description: "חשוב להבין: המערכת היא כלי בדיקה בלבד, לא ייעוץ מקצועי."
       }),
-      '<section class="content-card rounded-[32px] border border-line p-8 shadow-soft"><p class="text-base leading-8 text-slateText">השימוש במערכת מיועד לסימולציה, ניטור והמלצה תומכת החלטה בלבד, על בסיס נתונים שהמשתמש מזין והנחות שוק שעשויות להשתנות, ולכן אין לראות בתוצאה ייעוץ פיננסי, ייעוץ משפטי, ייעוץ מס, שיווק משכנתא, התחייבות לחיסכון, הצעה מחייבת או אישור לביצוע מחזור בפועל; כל החלטה מחייבת בדיקה אנושית, אימות מסמכים, בדיקת עמלות, בדיקת זכאות ותיאום מול הגורם המלווה והיועצים הרלוונטיים, ובגרסה הבאה יפורסם כאן המסמך המשפטי המלא לרבות כל ההנחות, ההחרגות, אופן עיבוד הנתונים, מדיניות פרטיות והליך אישור העניין להמשך טיפול.</p><div class="mt-6"><a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">להמשך לאשף</a></div></section>'
+      '<section class="content-card rounded-[32px] border border-line p-8 shadow-soft"><p class="text-base leading-8 text-slateText">השימוש במוניטור מיועד לסימולציה וניתוח בלבד - על בסיס נתונים שאתה/את מזינים וטובות מידע שעשויות להשתנות. התוצאה אינה ייעוץ פיננסי, משפטי או מס, ואינה הצעה מחייבת לביצוע מחזור. כל החלטה בפועל דורשת בדיקה אנושית, אימות מסמכים, ותיאום מול הבנק ויועצים מקצועיים. בגרסה הבאה יפורסם כאן המסמך המשפטי המלא עם כל ההנחות, ההגבלות ומדיניות הנתונים.</p><div class="mt-6"><a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">המשך לאשף</a></div></section>'
     ].join("");
     return;
 
     root.innerHTML = [
       App.UI.renderPageHeader({
-        eyebrow: "legal disclaimer",
-        title: "לפני שממשיכים, חשוב להבין מה המערכת כן ומה היא לא",
-        description: "המערכת היא כלי AI-driven לתמיכה בהחלטה על בסיס נתונים והנחות שוק. היא אינה מחליפה ייעוץ פיננסי, משפטי, מיסויי או משכנתאי אישי."
+        eyebrow: "הסכמה משפטית",
+        title: "לפני שמתחילים - מה צריך לדעת",
+        description: "המערכת עוזרת בבדיקה וניתוח. היא לא מחליפה ייעוץ מקצועי אמיתי."
       }),
       '<section class="grid gap-6 lg:grid-cols-[1.05fr,0.95fr]">',
       '  <article class="content-card rounded-[32px] border border-line p-8">',
       '    <div class="flex items-start justify-between gap-4">',
-      '      <div><h2 class="text-3xl font-bold text-ink">סימולציה מחקרית, לא הצעה מחייבת</h2></div>',
-      App.UI.badge("warning", "נדרש אישור"),
+      '      <div><h2 class="text-3xl font-bold text-ink">זה סימולציה, לא הצעה מחייבת</h2></div>',
+      App.UI.badge("warning", "חשוב"),
       "    </div>",
-      '    <p class="mt-5 text-base leading-8 text-slateText">כל חישוב מוצג תחת הנחות של שוק, עלויות מעבר, אומדנים ותסריטי סיכון שעשויים להשתנות. יש לאמת מול הגורם המלווה והיועצים הרלוונטיים את הנתונים הסופיים לפני קבלת החלטה.</p>',
+      '    <p class="mt-5 text-base leading-8 text-slateText">כל חישוב מוצג תחת הנחות שוק, עלויות מעבר ותרחישי סיכון שעשויים להשתנות. לפני החלטה, חייב לאמת מול הבנק והיועצים הרלוונטיים את הנתונים הסופיים.</p>',
       '    <ul class="mt-6 space-y-3 text-sm leading-7 text-slateText">',
-      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">המערכת אינה מכירה את כל התנאים המסחריים האפשריים של הבנק או הגוף המממן.</li>',
-      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">עמלות פירעון מוקדם, מדד, ריבית ועוגנים עשויים להשתנות עד למועד הביצוע בפועל.</li>',
-      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">התוצאה אינה מהווה התחייבות לחיסכון בפועל ואינה תחליף לייעוץ מקצועי מותאם אישית.</li>',
-      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">המערכת אינה מבצעת פעולה אוטומטית על בסיס ההמלצה. היא מבקשת אישור עניין בלבד.</li>',
+      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">המערכת אינה יודעת על כל התנאים המיוחדים שהבנק יכול להציע.</li>',
+      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">עמלות, ריביות ותנאים אחרים עשויים להשתנות עד למועד הביצוע בפועל.</li>',
+      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">התוצאה אינה ערובה לחיסכון בפועל ואינה תחליף לייעוץ אישי של מומחה.</li>',
+      '      <li class="rounded-2xl border border-line bg-surface px-4 py-3">המערכת לא מבצעת פעולה אוטומטית. אתה/את בשליטה מלאה.</li>',
       "    </ul>",
       "  </article>",
       '  <form id="consent-form" class="content-card rounded-[32px] border border-line p-8">',
-      '    <h3 class="text-2xl font-bold text-ink">אישור והמשך לאשף החינמי</h3>',
+      '    <h3 class="text-2xl font-bold text-ink">אישור והמשך</h3>',
       '    <div class="mt-6 space-y-4 text-sm text-slateText">',
-      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="acknowledge" /><span>קראתי והבנתי שהמערכת מציגה סימולציה והמלצה בלבד.</span></label>',
-      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="limitations" /><span>אני מאשר/ת שהנתונים שאזין משקפים ככל האפשר את מבנה המשכנתא הקיים.</span></label>',
-      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="expert" /><span>אופציונלי: אני מעוניין/ת שגם מומחה יוכל לראות את הסיכום לאחר שאאשר עניין בהמשך.</span></label>',
+      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="acknowledge" /><span>קראתי והבנתי שזו סימולציה בלבד.</span></label>',
+      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="limitations" /><span>אני מאשר/ת שהנתונים שאזין משקפים את מבנה המשכנתה שלי ככל שאוכל.</span></label>',
+      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="expert" /><span>אני מעוניין/ת שמומחה יוכל לראות את הניתוח שלי לשם שיחה ממוקדת.</span></label>',
       "    </div>",
       '    <div id="consent-state" class="mt-5 text-sm"></div>',
-      '    <button type="submit" class="mt-6 w-full rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">המשך להזנת המשכנתא</button>',
-      '    <p class="mt-4 text-xs text-slateText">אפשר להפסיק בכל שלב. הנתונים נשמרים בדפדפן לצורך הדגמה בלבד.</p>',
+      '    <button type="submit" class="mt-6 w-full rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">המשך להזנת נתונים</button>',
+      '    <p class="mt-4 text-xs text-slateText">אפשר להפסיק בכל עת. הנתונים נשמרים בדפדפן בלבד, לצורך הדגמה.</p>',
       "  </form>",
       "</section>"
     ].join("");
@@ -188,7 +188,7 @@
       var expert = $(this).find('[name="expert"]').is(":checked");
 
       if (!acknowledge || !limitations) {
-        $("#consent-state").html('<div class="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-danger">יש לאשר את שני הסעיפים המחייבים לפני המשך.</div>');
+        $("#consent-state").html('<div class="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-danger">צריך לאשר את שני התנאים הראשונים.</div>');
         return;
       }
 
@@ -198,7 +198,7 @@
         })
       });
 
-      $("#consent-state").html('<div class="rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-success">האישור התקבל. מעבירים אותך לאשף החינמי.</div>');
+      $("#consent-state").html('<div class="rounded-2xl border border-success/20 bg-emerald-50 px-4 py-3 text-success">תודה. מעבירים אותך לאשף.</div>');
       window.setTimeout(function () {
         window.location.href = App.Helpers.link("pages/onboarding.html");
       }, 650);
@@ -208,34 +208,34 @@
   App.Pages.about = function (root) {
     root.innerHTML = [
       App.UI.renderPageHeader({
-        eyebrow: "about labib",
-        title: "אודות Labib Mortgage Monitor",
-        description: "Labib הוא מוצר מחקרי ו-AI-driven לניתוח משכנתאות קיימות, ניטור הזדמנויות למחזור והצגת המלצות ברורות לצד הנחות, מגבלות וצעדים הבאים."
+        eyebrow: "על המוניטור",
+        title: "אודות המוניטור",
+        description: "מוצר מחקרי לניתוח משכנתאות - בנוי על כלכלה, מתמטיקה וכללים ברורים."
       }),
       '<section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">',
       '  <article class="content-card rounded-[32px] border border-line p-8 shadow-panel">',
-      '    <h2 class="text-3xl font-extrabold text-ink">פיתוח מבוסס מחקר, כלכלה ומתמטיקה</h2>',
-      '    <p class="mt-4 text-base leading-8 text-slateText">המוצר פותח כדי לתת למחזיקי משכנתאות קיימות כלי החלטה רציני, שקוף ושימושי. במקום שיח שיווקי, המיקוד הוא בהשוואה, explainability, robust scenarios וכתבי ויתור ברורים.</p>',
+      '    <h2 class="text-3xl font-extrabold text-ink">בנוי על מחקר, לא על שיווק</h2>',
+      '    <p class="mt-4 text-base leading-8 text-slateText">המוניטור פותח כדי לתת לאנשים כלי בדיקה אמיתי ושקוף. המיקוד הוא על השוואה הוגנת, הסברים ברורים, ותרחישי סיכון אמיתיים - לא על דחיפה או מכירות אגרסיביות.</p>',
       '    <div class="mt-8 grid gap-4 md:grid-cols-2">',
-      '      <div class="content-card-soft rounded-[24px] border border-line p-5"><p class="text-sm font-bold text-slateText">Dr. Labib Shami</p><p class="mt-2 text-xl font-bold text-ink">Economist</p><p class="mt-3 text-sm leading-7 text-slateText">פיתוח המסגרת הכלכלית, מדדי הכדאיות ותצוגת העלות-תועלת.</p></div>',
-      '      <div class="content-card-soft rounded-[24px] border border-line p-5"><p class="text-sm font-bold text-slateText">Prof\' Teddy Lazebnik</p><p class="mt-2 text-xl font-bold text-ink">Mathematician</p><p class="mt-3 text-sm leading-7 text-slateText">פיתוח המודלים, תרחישי הרובסטיות והלוגיקה האנליטית.</p></div>',
+      '      <div class="content-card-soft rounded-[24px] border border-line p-5"><p class="text-sm font-bold text-slateText">Dr. Labib Shami</p><p class="mt-2 text-xl font-bold text-ink">כלכלן</p><p class="mt-3 text-sm leading-7 text-slateText">מסגרת כלכלית, דוגמודלים וניתוח עלות-תועלת.</p></div>',
+      '      <div class="content-card-soft rounded-[24px] border border-line p-5"><p class="text-sm font-bold text-slateText">Prof\' Teddy Lazebnik</p><p class="mt-2 text-xl font-bold text-ink">מתמטיקאי</p><p class="mt-3 text-sm leading-7 text-slateText">מודלים, תרחישים חזקים ולוגיקה אנליטית.</p></div>',
       "    </div>",
       "  </article>",
       '  <div class="space-y-6">',
       featureCard({
         icon: "ai",
-        title: "AI-driven, אבל שקוף",
-        body: "המערכת מייצרת המלצה מבוססת נתונים, אך תמיד מציגה גם הנחות, מגבלות, רגישות וכתב ויתור ברור."
+        title: "AI עם שקיפות מלאה",
+        body: "המערכת מייצרת המלצה על בסיס נתונים, אך תמיד עם הנחות, מגבלות וכתב ויתור ברור."
       }),
       featureCard({
         icon: "research",
-        title: "Research-based by design",
-        body: "הדגש הוא על ניתוח כלכלי, מתמטי ותפעולי של משכנתא קיימת, ולא על שיווק אגרסיבי של מסלולים חדשים."
+        title: "מחקר, לא טריקים",
+        body: "הדגש על ניתוח כלכלי, מתמטי ותפעולי של משכנתה קיימת - לא על שיווק מסלולים חדשים."
       }),
       featureCard({
         icon: "shield",
-        title: "Human confirmation stays in the loop",
-        body: "גם כשנמצאת חלופה טובה יותר, המערכת אינה מפעילה אותה. היא מבקשת את אישור הלקוח ומעבירה את הבקשה להמשך טיפול."
+        title: "אתה תמיד בשליטה",
+        body: "גם כשנמצאת חלופה טובה - לא מבצעים אותה. את/ה מחליטה/ת, ואנחנו מסייעים רק בהמשך."
       }),
       "  </div>",
       "</section>"

@@ -128,15 +128,15 @@
     var pageKey = document.body.dataset.page;
     return [
       '<aside class="hidden py-8 lg:block">',
-      '  <div class="noise-bg sticky top-28 overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-soft">',
-      '    <div class="mb-4 flex items-center gap-3 rounded-[24px] border border-brand-100 bg-gradient-to-br from-brand-50 to-amber-50 px-4 py-4">',
+      '  <div class="noise-bg sticky top-28 overflow-hidden rounded-[28px] border border-line bg-white p-6 shadow-soft">',
+      '    <div class="mb-6 flex items-center gap-4 rounded-[24px] border border-brand-100 bg-gradient-to-br from-brand-50 to-amber-50 px-5 py-5">',
       '      <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl text-brand-700 shadow-soft">&#9672;</span>',
       '      <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-slateText">workspace</p><p class="text-lg font-bold text-ink">סביבת עבודה</p></div>',
       "    </div>",
-      '    <div class="space-y-3">' + navLinksMarkup(appNav, pageKey) + "</div>",
+      '    <div class="space-y-4">' + navLinksMarkup(appNav, pageKey) + "</div>",
       "  </div>",
       "</aside>"
-    ].join("");
+   ].join("");
   }
 
   function mobileNav(list, activeKey) {
