@@ -395,26 +395,34 @@
         }
         var mortgagePayload = {
           lender_name: payload.lender.lenderName,
-          property_city: payload.basic.propertyCity,
+          property_city: payload.basic.propertySettlement || null,
           property_value: Number(payload.basic.propertyValue || 0),
           current_monthly_payment: Number(payload.basic.currentMonthlyPayment || 0),
-          loan_purpose: payload.basic.loanPurpose || null,
-          occupancy_status: payload.basic.occupancyStatus || null,
+          loan_purpose: payload.basic.propertySubtype || null,
+          occupancy_status: payload.basic.propertyType || null,
           prepayment_fee: Number(payload.costs.prepaymentFee || 0),
           advisor_cost: Number(payload.costs.advisor || 0),
+          bank_cost: Number(payload.costs.bankFees || 0),
+          appraisal_cost: payload.costs.appraisalRequired ? 2500 : 0,
+          appraisal_required: !!payload.costs.appraisalRequired,
+          years_since_origination: Number(payload.basic.yearsSinceOrigin || 0),
           tracks: payload.tracks.map(function (track) {
             return {
               label: track.label,
               track_type: track.type,
               outstanding_balance: Number(track.outstandingBalance || 0),
               current_rate: Number(track.currentRate || 0),
+              original_rate: Number(track.originalRate || track.currentRate || 0),
               remaining_term_months: Number(track.remainingTermMonths || 0),
               linkage_type: track.linkageType || null,
               rate_type: track.rateType || null,
               reset_interval: track.resetInterval || null,
               next_reset_date: track.nextResetDate || null,
               amortization_method: track.amortizationMethod || null,
-              prepayment_penalty_rule: track.prepaymentPenaltyRule || null
+              prepayment_penalty_rule: track.prepaymentPenaltyRule || null,
+              original_cpi: track.originalCPI != null && track.originalCPI !== "" ? Number(track.originalCPI) : null,
+              bank_margin: track.bankMargin != null && track.bankMargin !== "" ? Number(track.bankMargin) : null,
+              years_since_origination: Number(payload.basic.yearsSinceOrigin || 0)
             };
           })
         };

@@ -188,7 +188,7 @@
           ].join("")
         }),
         recommendationBanner(dashboard.recommendation),
-        '<section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">',
+        '<section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4" data-testid="dashboard-metrics">',
         App.UI.metricCard({ label: "תשלום חודשי כיום", value: App.Format.currency(mortgage.currentMonthlyPayment), note: "על בסיס נתוני התיק העדכניים" }),
         App.UI.metricCard({ label: "תשלום משוער לאחר מחזור", value: App.Format.currency(dashboard.estimatedRefinancePayment), note: "תרחיש מרכזי", badge: { tone: "success", label: "פחות לחץ תזרימי" } }),
         App.UI.metricCard({ label: "חיסכון נטו חזוי", value: App.Format.currency(dashboard.projectedNetSavings), note: "כולל עלויות מעבר" }),
@@ -196,7 +196,7 @@
         "</section>",
         '<section class="mt-6 grid gap-6 xl:grid-cols-[1fr,0.95fr]">',
         '  <div class="space-y-6">',
-        '    <article class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-[0.18em] text-slateText">urgency</p><h2 class="mt-2 text-2xl font-bold text-ink">' + dashboard.urgency.label + '</h2><p class="mt-3 text-sm leading-7 text-slateText">' + dashboard.urgency.description + '</p></div>' + App.UI.badge("warning", "נדרש מעקב") + '</div><div class="mt-6 flex flex-wrap gap-3">' + interestButton("אשר/י עניין להמשך טיפול", "dashboard-urgency", dashboard.recommendation.headline) + '<a href="' + App.Helpers.link("pages/partial-refinance.html") + '" class="rounded-full border border-line px-5 py-3 text-sm font-bold text-ink hover:border-brand-600 hover:text-brand-600">בדיקת מחזור חלקי</a></div><p class="mt-4 text-sm leading-7 text-slateText">המערכת אינה מממשת את המחזור שנמצא. לאחר אישור עניין, הבקשה נשלחת לצוות וניצור קשר עם הלקוח/ה בהקדם.</p></article>',
+        '    <article class="rounded-[28px] border border-line bg-white p-6 shadow-soft" data-testid="dashboard-urgency"><div class="flex items-start justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-[0.18em] text-slateText">urgency</p><h2 class="mt-2 text-2xl font-bold text-ink">' + dashboard.urgency.label + '</h2><p class="mt-3 text-sm leading-7 text-slateText">' + dashboard.urgency.description + '</p></div>' + App.UI.badge("warning", "נדרש מעקב") + '</div><div class="mt-6 flex flex-wrap gap-3">' + interestButton("אשר/י עניין להמשך טיפול", "dashboard-urgency", dashboard.recommendation.headline) + '<a href="' + App.Helpers.link("pages/partial-refinance.html") + '" class="rounded-full border border-line px-5 py-3 text-sm font-bold text-ink hover:border-brand-600 hover:text-brand-600">בדיקת מחזור חלקי</a></div><p class="mt-4 text-sm leading-7 text-slateText">המערכת אינה מממשת את המחזור שנמצא. לאחר אישור עניין, הבקשה נשלחת לצוות וניצור קשר עם הלקוח/ה בהקדם.</p></article>',
         App.UI.chartPlaceholder("חלוקת יתרה בין מסלולים", mortgage.tracks.map(function (track) {
           return {
             label: track.label,

@@ -435,10 +435,10 @@
       var advisorFee = Number(state.costs.advisor) || 7000;
       var bankFees = Number(state.costs.bankFees) || 3500;
       var appraisalFee = (state.costs.appraisalRequired === true) ? 2500 : 0;
-      
-      // Always recalculate penalty based on current track data
-      var customPenalty = totalPenalty;
 
+      // Always recalculate penalty based on current track data unless the user supplied an override.
+      var customPenalty = totalPenalty;
+      var displayPenalty = (state.costs.prepaymentFee && Number(state.costs.prepaymentFee) > 0) ? Number(state.costs.prepaymentFee) : customPenalty;
       var totalCosts = displayPenalty + advisorFee + bankFees + appraisalFee;
 
       var tab3Html = '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h2 class="text-3xl font-bold text-ink">שלב 3: עלויות מחזור משכנתה</h2><p class="mt-3 text-sm leading-7 text-slateText">סיכום כל העלויות הכרוכות בפירעון המשכנתה הקיימת ולקיחת משכנתה חדשה. ערכים מוערכים בחסר (שמרני).</p></section>';
@@ -462,25 +462,23 @@
       tab3Html += '<section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h3 class="text-xl font-bold text-ink mb-6">עריכת עלויות</h3><div class="grid gap-6 lg:grid-cols-2">';
 
       tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">עמלת פירעון מוקדם (₪)</label>';
-      // Show what user entered, or calculated value if nothing entered
-      var displayPenalty = (state.costs.prepaymentFee && Number(state.costs.prepaymentFee) > 0) ? Number(state.costs.prepaymentFee) : customPenalty;
-      tab3Html += '<input type="number" name="costs.prepaymentFee" value="' + displayPenalty + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.prepaymentFee" placeholder="0">';
+      tab3Html += '<input type="number" name="costs.prepaymentFee" value="' + displayPenalty + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.prepaymentFee" data-testid="costs-prepayment-input" placeholder="0">';
       tab3Html += '<p class="mt-2 text-xs text-slateText">אם יש לכם ציטוט מהבנק, הכניסו כאן. אחרת, משתמשים בחישוב שלנו.</p></div>';
 
       tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">שכר טרחה - יועץ משכנתאות (₪)</label>';
-      tab3Html += '<input type="number" name="costs.advisor" value="' + advisorFee + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.advisor" placeholder="7000">';
+      tab3Html += '<input type="number" name="costs.advisor" value="' + advisorFee + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.advisor" data-testid="costs-advisor-input" placeholder="7000">';
       tab3Html += '<p class="mt-2 text-xs text-slateText">ברירת מחדל: ₪7,000 (טווח שוק: ₪6,000-9,000)</p></div>';
 
       tab3Html += '<div><label class="block text-sm font-semibold text-ink mb-2">עמלות בנקאיות (₪)</label>';
-      tab3Html += '<input type="number" name="costs.bankFees" value="' + bankFees + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.bankFees" placeholder="3500">';
+      tab3Html += '<input type="number" name="costs.bankFees" value="' + bankFees + '" min="0" step="100" class="w-full px-4 py-2 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-brand-600" data-bind="costs.bankFees" data-testid="costs-bank-input" placeholder="3500">';
       tab3Html += '<p class="mt-2 text-xs text-slateText">רישום + טיפול + הנמכה (ברירת מחדל: ₪3,500)</p></div>';
 
-      tab3Html += '<div><label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" name="costs.appraisalRequired" ' + (appraisalFee === 2500 ? 'checked' : '') + ' class="w-5 h-5 rounded border-line text-brand-600" data-bind="costs.appraisalRequired"><span class="text-sm font-semibold text-ink">נדרשת שמאות חדשה (₪2,500)</span></label>';
+      tab3Html += '<div><label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" name="costs.appraisalRequired" ' + (appraisalFee === 2500 ? 'checked' : '') + ' class="w-5 h-5 rounded border-line text-brand-600" data-bind="costs.appraisalRequired" data-testid="costs-appraisal-checkbox"><span class="text-sm font-semibold text-ink">נדרשת שמאות חדשה (₪2,500)</span></label>';
       tab3Html += '<p class="mt-2 text-xs text-slateText">סמנו אם הבנק דורש שמאות חדשה</p></div>';
 
       tab3Html += '</div></section>';
 
-      tab3Html += '<section class="rounded-[32px] border-2 border-brand-600 bg-brand-50 p-8 shadow-soft"><div class="flex items-baseline justify-between"><div><p class="text-sm font-semibold uppercase tracking-wide text-slateText">סה"כ עלויות מחזור</p><p class="mt-3 text-4xl font-bold text-brand-600">' + App.Format.currency(totalCosts) + '</p></div><div class="text-right"><p class="text-xs text-slateText mb-2">פירוט:</p><div class="space-y-1 text-sm"><div class="flex justify-between"><span>פירעון מוקדם:</span><span class="font-semibold">' + App.Format.currency(displayPenalty) + '</span></div><div class="flex justify-between"><span>יועץ:</span><span class="font-semibold">' + App.Format.currency(advisorFee) + '</span></div><div class="flex justify-between"><span>בנק:</span><span class="font-semibold">' + App.Format.currency(bankFees) + '</span></div>' + (appraisalFee > 0 ? '<div class="flex justify-between"><span>שמאות:</span><span class="font-semibold">' + App.Format.currency(appraisalFee) + '</span></div>' : '') + '</div></div></div></section>';
+      tab3Html += '<section class="rounded-[32px] border-2 border-brand-600 bg-brand-50 p-8 shadow-soft" data-testid="wizard-total-costs"><div class="flex items-baseline justify-between"><div><p class="text-sm font-semibold uppercase tracking-wide text-slateText">סה"כ עלויות מחזור</p><p class="mt-3 text-4xl font-bold text-brand-600" data-testid="wizard-total-costs-value">' + App.Format.currency(totalCosts) + '</p></div><div class="text-right"><p class="text-xs text-slateText mb-2">פירוט:</p><div class="space-y-1 text-sm"><div class="flex justify-between"><span>פירעון מוקדם:</span><span class="font-semibold">' + App.Format.currency(displayPenalty) + '</span></div><div class="flex justify-between"><span>יועץ:</span><span class="font-semibold">' + App.Format.currency(advisorFee) + '</span></div><div class="flex justify-between"><span>בנק:</span><span class="font-semibold">' + App.Format.currency(bankFees) + '</span></div>' + (appraisalFee > 0 ? '<div class="flex justify-between"><span>שמאות:</span><span class="font-semibold">' + App.Format.currency(appraisalFee) + '</span></div>' : '') + '</div></div></div></section>';
 
       tab3Html += infoNote("נתונים אלה משמשים לחישוב נקודת שיוויון (break-even) ודירוג חיסכון נטו.", "info");
 
@@ -770,6 +768,9 @@
       }
       // Always re-render current tab when track data changes so penalties stay updated
       if ($(this).data("bind").indexOf("tracks.") === 0 && /\.(outstandingBalance|currentRate|remainingTermMonths)$/.test($(this).data("bind"))) {
+        render();
+      }
+      if (currentStep === 3 && $(this).data("bind").indexOf("costs.") === 0) {
         render();
       }
     });
