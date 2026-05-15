@@ -84,6 +84,79 @@ textarea {
   display: inline-block;
 }
 
+.formatted-number-input {
+  width: 100%;
+  text-align: right;
+}
+
+.help-bubble {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.help-bubble-trigger {
+  display: inline-flex;
+  height: 1.4rem;
+  width: 1.4rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(53, 104, 220, 0.24);
+  border-radius: 999px;
+  background: rgba(53, 104, 220, 0.1);
+  color: var(--brand-navy);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.help-bubble-trigger:hover,
+.help-bubble-trigger:focus-visible {
+  background: rgba(53, 104, 220, 0.16);
+  border-color: rgba(53, 104, 220, 0.4);
+}
+
+.help-bubble-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 20;
+  width: min(18rem, 70vw);
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(18, 59, 107, 0.12);
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(16, 34, 67, 0.14);
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+
+.help-bubble-panel::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0.9rem;
+  top: -0.35rem;
+  height: 0.7rem;
+  width: 0.7rem;
+  border-top: 1px solid rgba(18, 59, 107, 0.12);
+  border-left: 1px solid rgba(18, 59, 107, 0.12);
+  background: #ffffff;
+  transform: rotate(45deg);
+}
+
+.help-bubble:hover .help-bubble-panel,
+.help-bubble:focus-within .help-bubble-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 .hero-grid {
   background-image:
     linear-gradient(rgba(18, 59, 107, 0.05) 1px, transparent 1px),

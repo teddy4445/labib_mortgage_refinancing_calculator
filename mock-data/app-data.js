@@ -14,8 +14,8 @@ window.MockData = {
       severeOnly: false
     },
     profile: {
-      username: "Yael Levi",
-      fullName: "יעל לוי",
+      username: "",
+      fullName: "",
       city: "תל אביב",
       phone: "050-555-0182",
       age: "",
@@ -65,7 +65,7 @@ window.MockData = {
     ]
   },
   mortgage: {
-    lender: "בנק מזרחי טפחות",
+    lender: "Mizrahi Tefahot Bank Ltd.",
     originationDate: "2020-11-15",
     originalAmount: 1540000,
     propertyValue: 2480000,

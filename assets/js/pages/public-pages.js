@@ -67,7 +67,7 @@
       App.UI.metricCard({ label: "צמצום סיכון", value: "מ-74 ל-48", note: "פחות חשיפה לשינויים" }),
       App.UI.metricCard({ label: "סטטוס", value: "מחכה להחלטתך", note: "אתה בשליטה מלאה" }),
       "      </div>",
-      '      <div class="mt-6 rounded-[24px] border border-line bg-white px-5 py-4 text-sm leading-7 text-slateText">אם נמצאת חלופה טובה יותר, אנחנו מציגים אותה - ואתה/את מחליטה/ת אם להמשיך.</div>',
+      '      <div class="mt-6 rounded-[24px] border border-line bg-white px-5 py-4 text-sm leading-7 text-slateText">אם נמצאת חלופה טובה יותר, אנחנו מציגים אותה בבירור, וההחלטה אם להמשיך נשארת בידיים שלך.</div>',
       "    </div>",
       "  </div>",
       "</section>"
@@ -81,7 +81,7 @@
         '  <div class="grid gap-10 lg:grid-cols-[1.08fr,0.92fr] lg:items-center">',
         '    <div>',
         '      <h1 class="max-w-3xl text-balance text-4xl font-extrabold leading-tight text-ink sm:text-5xl lg:text-6xl">למחזר או לא למחזר, זאת השאלה</h1>',
-        '      <p class="mt-5 max-w-2xl text-lg leading-8 text-slateText">משכנתה היא החלטה חשובה. המוניטור מסדר את התמונה: מנתח את התיק שלך, משווה אפשרויות ממשיות, ומציג בבהירות - מה כדאי לעשות. ללא טריקים, ללא לחץ. רק מידע שאת/ה יכול/ה להאמין לו.</p>',
+        '      <p class="mt-5 max-w-2xl text-lg leading-8 text-slateText">לקיחת משכנתא היא החלטה פיננסית משמעותית, אבל ניהול נכון שלה לאורך שנות ההחזר חשוב לא פחות. המוניטור מסדר את התמונה: מנתח את התיק שלך, משווה אפשרויות ממשיות, ומציג בבהירות מה כדאי לעשות. ללא טריקים, ללא לחץ. רק מידע שאפשר להסתמך עליו.</p>',
         '      <div class="mt-6 grid gap-3 sm:grid-cols-3">',
         '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("compare") + '</div><p class="mt-4 text-sm font-semibold text-ink">השוואה שקופה - שמור, מחזור מלא, או מחזור חלקי</p></div>',
         '        <div class="content-card-soft rounded-[24px] border border-line px-4 py-4"><div class="icon-chip">' + icon("ai") + '</div><p class="mt-4 text-sm font-semibold text-ink">הבנה לפני החלטה - רואים הכל בצורה ברורה</p></div>',
@@ -128,7 +128,7 @@
         "</section>",
         '<section class="mt-20 content-card rounded-[32px] border border-line p-8">',
         '  <div class="grid gap-6 lg:grid-cols-[1fr,auto] lg:items-center">',
-        '    <div><h2 class="text-3xl font-bold text-ink">רוצה לבדוק את המשכנתה שלך ללא עלות?</h2><p class="mt-3 max-w-2xl text-base leading-7 text-slateText">האשף החינמי אוסף את כל הנתונים, מציג המלצה ברורה, ורק בסוף - אם את/ה רוצה - יוצרים חשבון כדי לשמור את התוצאות ולעקוב לאורך זמן.</p></div>',
+        '    <div><h2 class="text-3xl font-bold text-ink">רוצה לבדוק את המשכנתא שלך ללא עלות?</h2><p class="mt-3 max-w-2xl text-base leading-7 text-slateText">האשף החינמי אוסף את כל הנתונים, מציג המלצה ברורה, ורק בסוף, אם תרצו, יוצרים חשבון כדי לשמור את התוצאות ולעקוב לאורך זמן.</p></div>',
         '    <div><a href="' + App.Helpers.link("pages/onboarding.html") + '" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white">התחל את האשף</a></div>',
         "  </div>",
         "</section>"
@@ -171,7 +171,7 @@
       '    <h3 class="text-2xl font-bold text-ink">אישור והמשך</h3>',
       '    <div class="mt-6 space-y-4 text-sm text-slateText">',
       '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="acknowledge" /><span>קראתי והבנתי שזו סימולציה בלבד.</span></label>',
-      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="limitations" /><span>אני מאשר/ת שהנתונים שאזין משקפים את מבנה המשכנתה שלי ככל שאוכל.</span></label>',
+      '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="limitations" /><span>אני מאשר/ת שהנתונים שאזין משקפים את מבנה המשכנתא שלי ככל שאוכל.</span></label>',
       '      <label class="flex items-start gap-3 rounded-2xl border border-line p-4"><input class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" type="checkbox" name="expert" /><span>אני מעוניין/ת שמומחה יוכל לראות את הניתוח שלי לשם שיחה ממוקדת.</span></label>',
       "    </div>",
       '    <div id="consent-state" class="mt-5 text-sm"></div>',
@@ -210,7 +210,7 @@
       App.UI.renderPageHeader({
         eyebrow: "על המוניטור",
         title: "אודות המוניטור",
-        description: "מוצר מחקרי לניתוח משכנתאות - בנוי על כלכלה, מתמטיקה וכללים ברורים."
+        description: "מוצר מחקרי לניתוח משכנתאות, המבוסס על כלכלה, מתמטיקה וכללים ברורים."
       }),
       '<section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">',
       '  <article class="content-card rounded-[32px] border border-line p-8 shadow-panel">',
@@ -229,13 +229,13 @@
       }),
       featureCard({
         icon: "research",
-        title: "מחקר, לא טריקים",
-        body: "הדגש על ניתוח כלכלי, מתמטי ותפעולי של משכנתה קיימת - לא על שיווק מסלולים חדשים."
+        title: "מחקר עם שפה ברורה",
+        body: "הדגש הוא על ניתוח כלכלי, מתמטי ותפעולי של משכנתא קיימת, ולא על שיווק מסלולים חדשים."
       }),
       featureCard({
         icon: "shield",
-        title: "אתה תמיד בשליטה",
-        body: "גם כשנמצאת חלופה טובה - לא מבצעים אותה. את/ה מחליטה/ת, ואנחנו מסייעים רק בהמשך."
+        title: "השליטה נשארת אצלך",
+        body: "גם כשנמצאת חלופה טובה, לא מתבצעת פעולה אוטומטית. ההחלטה אם להמשיך נשארת בידיים שלך, ואנחנו מסייעים רק בהמשך."
       }),
       "  </div>",
       "</section>"

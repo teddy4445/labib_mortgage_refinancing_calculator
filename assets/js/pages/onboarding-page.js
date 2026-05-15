@@ -49,14 +49,23 @@
   };
 
   var lenderOptions = [
-    "בנק לאומי",
-    "בנק הפועלים",
-    "בנק דיסקונט",
-    "בנק מזרחי טפחות",
-    "בנק הבינלאומי",
-    "בנק אגוד",
-    "בנק אחר"
+    "Bank Ash Israel Ltd.",
+    "Discount Bank of Israel Ltd.",
+    "First International Bank of Israel Ltd.",
+    "Bank Hapoalim Ltd.",
+    "Yahav Bank for State Employees Ltd.",
+    "Bank of Jerusalem Ltd.",
+    "Bank Leumi Ltd.",
+    "Mizrahi Tefahot Bank Ltd.",
+    "Bank Massad Ltd.",
+    "Mercantile Discount Bank Ltd.",
+    "One Zero Digital Bank Ltd.",
+    "Other"
   ];
+
+  function deriveTrackLabel(type, index) {
+    return "מסלול " + (index + 1) + " · " + (trackTypeLabels[type] || trackTypeLabels.fixed_non_linked);
+  }
 
   function trackTypeOptions(selected) {
     return Object.keys(trackTypeLabels).map(function (key) {
@@ -64,10 +73,11 @@
     }).join("");
   }
 
-  function normalizeTrack(track) {
+  function normalizeTrack(track, index) {
     var meta = trackTypeMeta[track.type] || trackTypeMeta.fixed_non_linked;
     track.linkageType = meta.linkageType;
     track.rateType = meta.rateType;
+    track.label = deriveTrackLabel(track.type, typeof index === "number" ? index : 0);
 
     if (!meta.hasRateUpdateStation) {
       track.resetInterval = track.type === "prime_floating" ? "עדכון שוטף לפי פריים" : "ללא";
@@ -80,7 +90,7 @@
   function createTrack(index, seed) {
     return normalizeTrack($.extend(true, {
       id: App.Helpers.uid("track"),
-      label: "מסלול " + (index + 1),
+      label: deriveTrackLabel("fixed_non_linked", index),
       type: "fixed_non_linked",
       outstandingBalance: 0,
       currentRate: 0,
@@ -92,7 +102,7 @@
       nextResetDate: "",
       amortizationMethod: "שפיצר",
       prepaymentPenaltyRule: "לפי תנאי הבנק"
-    }, seed || {}));
+    }, seed || {}), index);
   }
 
   function normalizeTracksCollection(state) {
@@ -151,7 +161,7 @@
         resetRiskAversion: "medium"
       },
       account: {
-        username: profile.username || "",
+        username: "",
         email: session.email || "",
         phone: profile.phone || "",
         password: "",
@@ -211,7 +221,7 @@
   }
 
   function helpBubble(tooltipText) {
-    return '<button type="button" class="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 hover:bg-brand-200" data-help-bubble="' + App.Helpers.escapeHtml(tooltipText) + '" title="עזרה">?</button>';
+    return '<span class="help-bubble ml-2"><button type="button" class="help-bubble-trigger" aria-label="הסבר על השדה" title="הסבר">?</button><span class="help-bubble-panel" role="tooltip">' + App.Helpers.escapeHtml(tooltipText) + "</span></span>";
   }
 
   function input(label, bind, value, type, options) {
@@ -221,13 +231,19 @@
     var hint = config.hint ? '<p class="mt-2 text-xs text-slateText">' + config.hint + "</p>" : "";
     var help = config.help ? helpBubble(config.help) : "";
     var element = "";
+    var formatted = config.format === "integer";
 
     if (fieldType === "select") {
       element = '<select data-bind="' + bind + '" class="w-full rounded-2xl border-line bg-white px-4 py-3 text-sm">' + config.options + "</select>";
     } else if (fieldType === "checkbox") {
       return '<div class="col-span-full"><label class="flex items-start gap-3 rounded-2xl border border-line p-4 text-sm text-slateText"><input type="checkbox" data-bind="' + bind + '" class="mt-1 h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-600" ' + (value ? "checked" : "") + ' /><span>' + label + "</span></label></div>";
     } else {
-      element = '<input data-bind="' + bind + '" type="' + fieldType + '" value="' + App.Helpers.escapeHtml(value) + '" class="w-full rounded-2xl border-line bg-white px-4 py-3 text-sm" ' + attrs + " />";
+      var displayValue = formatted ? formatIntegerInput(value) : value;
+      var inputType = formatted ? "text" : fieldType;
+      var formatAttr = formatted ? ' data-format="integer"' : "";
+      var inputAttrs = (formatted ? 'inputmode="numeric" autocomplete="off" ' : "") + attrs;
+      var classes = "w-full rounded-2xl border-line bg-white px-4 py-3 text-sm" + (formatted || fieldType === "number" ? " tabular-nums number-ltr formatted-number-input" : "");
+      element = '<input data-bind="' + bind + '"' + formatAttr + ' type="' + inputType + '" value="' + App.Helpers.escapeHtml(displayValue) + '" class="' + classes + '" ' + inputAttrs + " />";
     }
 
     return '<label class="block"><span class="mb-2 flex items-center text-sm font-semibold text-ink">' + label + help + "</span>" + element + hint + "</label>";
@@ -248,15 +264,92 @@
     return '<section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h2 class="text-3xl font-bold text-ink">' + title + '</h2><p class="mt-3 text-sm leading-7 text-slateText">' + desc + "</p>" + body + "</section>";
   }
 
+  function parseFormattedNumber(value) {
+    var raw = String(value == null ? "" : value).replace(/[^\d.-]/g, "");
+
+    if (!raw) {
+      return "";
+    }
+
+    return Number(raw);
+  }
+
+  function formatIntegerInput(value) {
+    if (value === "" || value == null || Number.isNaN(Number(value))) {
+      return "";
+    }
+
+    return App.Format.number(Math.round(Number(value)));
+  }
+
+  function calculatePrepaymentPenalty(track, daysSinceOrigin, bankOfIsraelMarketRate) {
+    if (!track || !track.outstandingBalance || !track.currentRate) {
+      return 0;
+    }
+
+    var outstandingBalance = Number(track.outstandingBalance);
+    var originalAnnualRate = Number(track.currentRate) / 100;
+    var remainingMonths = Math.max(1, Number(track.remainingTermMonths) || 240);
+    var originalMonthlyRate = Math.pow(1 + originalAnnualRate, 1 / 12) - 1;
+    var marketMonthlyRate = Math.pow(1 + (bankOfIsraelMarketRate / 100), 1 / 12) - 1;
+    var monthlyPayment = outstandingBalance * (originalMonthlyRate * Math.pow(1 + originalMonthlyRate, remainingMonths)) /
+      (Math.pow(1 + originalMonthlyRate, remainingMonths) - 1);
+    var pvR = 0;
+    var pvA = 0;
+    var i;
+
+    for (i = 1; i <= remainingMonths; i += 1) {
+      pvR += monthlyPayment / Math.pow(1 + originalMonthlyRate, i);
+      pvA += monthlyPayment / Math.pow(1 + marketMonthlyRate, i);
+    }
+
+    var economicLoss = Math.max(0, pvA - pvR);
+    var yearsSinceOrigin = daysSinceOrigin / 365.25;
+    var discountFactor = 1.0;
+
+    if (yearsSinceOrigin >= 3 && yearsSinceOrigin < 5) {
+      discountFactor = 0.80;
+    } else if (yearsSinceOrigin >= 5) {
+      discountFactor = 0.70;
+    }
+
+    return Math.round(economicLoss * discountFactor);
+  }
+
+  function getCycleCostsSummary(state) {
+    var boiMarketRate = 3.8;
+    var daysSinceOrigin = Number(state.basic.yearsSinceOrigin) * 365.25;
+    var calculatedPenalty = 0;
+
+    state.tracks.forEach(function (track) {
+      if (track.type === "fixed_non_linked" || track.type === "fixed_linked") {
+        calculatedPenalty += calculatePrepaymentPenalty(track, daysSinceOrigin, boiMarketRate);
+      }
+    });
+
+    var advisorFee = Number(state.costs.advisor) || 7000;
+    var bankFees = Number(state.costs.bankFees) || 3500;
+    var appraisalFee = state.costs.appraisalRequired === true ? 2500 : 0;
+    var displayPenalty = state.costs.prepaymentFee && Number(state.costs.prepaymentFee) > 0
+      ? Number(state.costs.prepaymentFee)
+      : calculatedPenalty;
+
+    return {
+      calculatedPenalty: calculatedPenalty,
+      displayPenalty: displayPenalty,
+      advisorFee: advisorFee,
+      bankFees: bankFees,
+      appraisalFee: appraisalFee,
+      totalCosts: displayPenalty + advisorFee + bankFees + appraisalFee
+    };
+  }
+
   function moneySummary(state) {
     return {
       totalBalance: state.tracks.reduce(function (sum, track) {
         return sum + Number(track.outstandingBalance || 0);
       }, 0),
-      totalFees: (Number(state.costs.prepaymentFee || 0) + 
-                  Number(state.costs.advisor || 0) + 
-                  Number(state.costs.bankFees || 0) + 
-                  (state.costs.appraisalRequired === true ? 2500 : 0))
+      totalFees: getCycleCostsSummary(state).totalCosts
     };
   }
 
@@ -284,36 +377,54 @@
   }
 
   function trackCard(track, index) {
-    var normalizedTrack = normalizeTrack(track);
+    var normalizedTrack = normalizeTrack(track, index);
     var meta = trackTypeMeta[normalizedTrack.type] || trackTypeMeta.fixed_non_linked;
     var dynamicFields = meta.hasRateUpdateStation ? [
-      input("תדירות תחנת עדכון ריבית", "tracks." + index + ".resetInterval", normalizedTrack.resetInterval, "text", {
-        hint: "למשל כל 60 חודשים."
+      input("תדירות תחנת עדכון ריבית (בחודשים)", "tracks." + index + ".resetInterval", normalizedTrack.resetInterval, "text", {
+        hint: "למשל: 60 חודשים.",
+        help: "המספר או התיאור שמופיע בדוח הבנק ליד תחנת שינוי הריבית. אם כתוב 'כל 5 שנים' אפשר להזין 60 חודשים."
       }),
-      input("תאריך תחנת עדכון הריבית הבאה", "tracks." + index + ".nextResetDate", normalizedTrack.nextResetDate, "date")
+      input("תאריך תחנת עדכון הריבית הבאה", "tracks." + index + ".nextResetDate", normalizedTrack.nextResetDate, "date", {
+        help: "התאריך הבא שבו הריבית עשויה להתעדכן. בדרך כלל מופיע בדוח היתרות או בלוח הסילוקין של המסלול."
+      })
     ].join("") : "";
 
     return [
       '<article class="rounded-[28px] border border-line bg-white p-6 shadow-soft">',
-      '  <div class="flex items-center justify-between gap-4"><div><p class="text-sm font-bold text-slateText">מסלול ' + (index + 1) + '</p><h3 class="mt-1 text-xl font-bold text-ink">' + App.Helpers.escapeHtml(normalizedTrack.label) + '</h3></div><button type="button" class="rounded-full border border-line px-4 py-2 text-xs font-semibold text-slateText hover:border-danger hover:text-danger" data-remove-track="' + index + '"' + (index === 0 ? ' disabled="disabled"' : "") + '>הסר מסלול</button></div>',
+      '  <div class="flex items-center justify-between gap-4"><div><p class="text-sm font-bold text-slateText">מסלול ' + (index + 1) + '</p><h3 class="mt-1 text-xl font-bold text-ink">' + App.Helpers.escapeHtml(normalizedTrack.label) + '</h3><p class="mt-2 text-xs text-slateText">שם המסלול נוצר אוטומטית לפי סוג המסלול והסדר שלו באשף.</p></div><button type="button" class="rounded-full border border-line px-4 py-2 text-xs font-semibold text-slateText hover:border-danger hover:text-danger" data-remove-track="' + index + '"' + (index === 0 ? ' disabled="disabled"' : "") + '>הסר מסלול</button></div>',
       '  <div class="mt-6 grid gap-3 sm:grid-cols-2">' + [
         factCard("הצמדה", meta.linkageType),
         factCard("אופי הריבית", meta.rateType)
       ].join("") + "</div>",
       '  <div class="mt-4 rounded-[24px] border border-line bg-surface px-5 py-4 text-sm leading-7 text-slateText">' + meta.note + "</div>",
       '  <div class="wizard-track-grid mt-6">' + [
-        input("שם מסלול", "tracks." + index + ".label", normalizedTrack.label),
-        input("סוג מסלול", "tracks." + index + ".type", normalizedTrack.type, "select", { options: trackTypeOptions(normalizedTrack.type) }),
-        input("יתרה נוכחית", "tracks." + index + ".outstandingBalance", normalizedTrack.outstandingBalance, "number", { attrs: 'min="0" step="1000"' }),
-        input(meta.rateLabel, "tracks." + index + ".currentRate", normalizedTrack.currentRate, "number", { attrs: 'min="0" step="0.01"' }),
-        input("יתרת חודשים", "tracks." + index + ".remainingTermMonths", normalizedTrack.remainingTermMonths, "number", { attrs: 'min="1" step="1"' }),
+        input("סוג מסלול", "tracks." + index + ".type", normalizedTrack.type, "select", {
+          options: trackTypeOptions(normalizedTrack.type),
+          help: "בחרו את סוג המסלול כפי שהוא מופיע בדוח המסלולים של הבנק. בחירה זו קובעת אוטומטית את אופי הריבית וההצמדה."
+        }),
+        input("יתרה נוכחית", "tracks." + index + ".outstandingBalance", normalizedTrack.outstandingBalance, "text", {
+          format: "integer",
+          attrs: 'min="0" step="1000"',
+          help: "היתרה לסילוק של המסלול נכון להיום. בדרך כלל מופיעה בדוח היתרות תחת 'יתרה נוכחית', 'יתרה לסילוק' או שם דומה."
+        }),
+        input(meta.rateLabel, "tracks." + index + ".currentRate", normalizedTrack.currentRate, "number", {
+          attrs: 'min="0" max="25" step="0.01" inputmode="decimal"',
+          hint: "אפשר להזין גם ריביות גבוהות מ-9%.",
+          help: "הריבית הנוכחית של המסלול כפי שמופיעה בדוח היתרות. אם מדובר במסלול משתנה, הזינו את הריבית הפעילה כעת."
+        }),
+        input("יתרת חודשים", "tracks." + index + ".remainingTermMonths", normalizedTrack.remainingTermMonths, "number", {
+          attrs: 'min="1" step="1"',
+          help: "מספר החודשים שנותרו למסלול זה. ברוב דוחות הבנק תראו נתון בשם 'יתרה בחודשים' או 'תקופה שנותרה'."
+        }),
         input("שיטת סילוקין", "tracks." + index + ".amortizationMethod", normalizedTrack.amortizationMethod, "select", {
           options: '<option value="שפיצר"' + (normalizedTrack.amortizationMethod === "שפיצר" ? " selected" : "") + '>שפיצר</option><option value="קרן שווה"' + (normalizedTrack.amortizationMethod === "קרן שווה" ? " selected" : "") + '>קרן שווה</option>'
         }),
         dynamicFields,
-        input("כלל קנס פירעון", "tracks." + index + ".prepaymentPenaltyRule", normalizedTrack.prepaymentPenaltyRule)
+        input("כלל קנס פירעון", "tracks." + index + ".prepaymentPenaltyRule", normalizedTrack.prepaymentPenaltyRule, "text", {
+          help: "אם קיים ניסוח מיוחד במסמכי הבנק לגבי עמלת פירעון, אפשר לציין אותו כאן. אם לא, אפשר להשאיר את ברירת המחדל."
+        })
       ].join("") + "</div>",
-      '  <div class="mt-6 rounded-[24px] border border-brand-100 bg-brand-50 px-5 py-4 text-sm leading-7 text-slateText">הצמדה ואופי הריבית נקבעים אוטומטית לפי סוג המסלול כדי לצמצם טעויות מילוי.</div>',
+      '  <div class="mt-6 rounded-[24px] border border-brand-100 bg-brand-50 px-5 py-4 text-sm leading-7 text-slateText">הצמדה, אופי הריבית ושם המסלול מתעדכנים אוטומטית לפי סוג המסלול שבחרתם, כדי לשמור על התאמה בין השדות.</div>',
       "</article>"
     ].join("");
   }
@@ -330,12 +441,13 @@
               input("יישוב הנכס", "basic.propertySettlement", state.basic.propertySettlement, "text", {
                 help: "היישוב או העיר בו נמצא הנכס. תוכל/י למצוא זאת במסמך הרכישה או בתעודת הבעלות מהבנק."
               }),
-              input("שווי נכס משוער", "basic.propertyValue", state.basic.propertyValue, "number", {
+              input("שווי נכס משוער", "basic.propertyValue", state.basic.propertyValue, "text", {
+                format: "integer",
                 attrs: 'min="200000" step="1000"',
                 help: "הערכה של שווי הנכס בשוק. אם אתה זוכר/ת את מחיר הרכישה, תוכל/י להשתמש בו. בעלייה בשוק בשנים האחרונות: בערך 5-8% בשנה."
               }),
               input("סוג הנכס", "basic.propertyType", state.basic.propertyType, "select", {
-                options: '<option value="מגורים_עצמיים">מגורים עצמיים</option><option value="נכס_מושכר">נכס מושכר (להשקעה)</option>',
+                options: '<option value="מגורים_עצמיים">מגורים עצמיים</option><option value="נכס_מושכר">נכס מושכר (להשקעה)</option><option value="other">אחר</option>',
                 help: "בחר/י את סוג הנכס. סוג הנכס משפיע על גבולות ההלוואה: מגורים עצמיים - עד 75%, נכס להשקעה - עד 50%."
               })
             ].join("") + '</div>' +
@@ -343,7 +455,8 @@
           '<div>' +
             '<h3 class="mb-4 text-lg font-semibold text-ink">קטגוריה שנייה: פרטי התשלום הנוכחי</h3>' +
             '<div class="wizard-track-grid">' + [
-              input("תשלום חודשי נוכחי", "basic.currentMonthlyPayment", state.basic.currentMonthlyPayment, "number", {
+              input("תשלום חודשי נוכחי", "basic.currentMonthlyPayment", state.basic.currentMonthlyPayment, "text", {
+                format: "integer",
                 attrs: 'min="500" step="10"',
                 help: "ההוצאה החודשית שלך עבור המשכנתה. תוכל/י למצוא זאת בדוח החודשי מהבנק. זה כולל קרן וריבית, לא כולל ביטוח או עמלות נוספות."
               }),
@@ -373,89 +486,33 @@
     }
 
     if (step === 2) {
-      return '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><h2 class="text-3xl font-bold text-ink">שלב 2: פרטי מסלולים</h2><p class="mt-3 text-sm leading-7 text-slateText">לכל מסלול מוצגים רק השדות שרלוונטיים לסוג שבחרתם.</p></div><button type="button" class="rounded-full bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-add-track>הוספת מסלול</button></div><div class="mt-6">' + infoNote("הצמדה, אופי הריבית ותחנות העדכון נקבעים אוטומטית לפי סוג המסלול, כדי לצמצם טעויות מילוי.") + "</div></section>" + state.tracks.map(trackCard).join("") + "</div>";
+      return '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><h2 class="text-3xl font-bold text-ink">שלב 2: פרטי מסלולים</h2><p class="mt-3 text-sm leading-7 text-slateText">ממלאים כאן כל מסלול כפי שהוא מופיע בדוח היתרות או בדוח פירוט המסלולים מהבנק.</p></div><button type="button" class="rounded-full bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-add-track>הוספת מסלול</button></div><div class="mt-6 grid gap-4 lg:grid-cols-2">' + infoNote("בדוחות הבנק אפשר בדרך כלל למצוא כאן את הנתונים העיקריים: יתרה נוכחית, ריבית נוכחית, מספר חודשים שנותרו, ותאריך תחנת העדכון הבאה אם מדובר במסלול משתנה.") + infoNote("שם המסלול נקבע אוטומטית לפי סוג המסלול והסדר באשף. בוחרים רק את סוג המסלול, והמערכת שומרת על התאמה בין הסוג, ההצמדה ואופי הריבית.") + "</div></section>" + state.tracks.map(trackCard).join("") + "</div>";
     }
 
     if (step === 3) {
-      // PREPAYMENT PENALTY CALCULATION - Full NPV Implementation
-      function calculatePrepaymentPenalty(track, daysSinceOrigin, bankOfIsraelMarketRate) {
-        if (!track || !track.outstandingBalance || !track.currentRate) {
-          return 0;
-        }
-
-        var outstandingBalance = Number(track.outstandingBalance);
-        var originalAnnualRate = Number(track.currentRate) / 100;
-        var remainingMonths = Math.max(1, Number(track.remainingTermMonths) || 240);
-        
-        var originalMonthlyRate = Math.pow(1 + originalAnnualRate, 1/12) - 1;
-        var marketMonthlyRate = Math.pow(1 + (bankOfIsraelMarketRate / 100), 1/12) - 1;
-
-        var monthlyPayment = outstandingBalance * (originalMonthlyRate * Math.pow(1 + originalMonthlyRate, remainingMonths)) / 
-                             (Math.pow(1 + originalMonthlyRate, remainingMonths) - 1);
-
-        var pvR = 0;
-        for (var i = 1; i <= remainingMonths; i++) {
-          pvR += monthlyPayment / Math.pow(1 + originalMonthlyRate, i);
-        }
-
-        var pvA = 0;
-        for (var i = 1; i <= remainingMonths; i++) {
-          pvA += monthlyPayment / Math.pow(1 + marketMonthlyRate, i);
-        }
-
-        var economicLoss = Math.max(0, pvA - pvR);
-
-        var yearsSinceOrigin = daysSinceOrigin / 365.25;
-        var discountFactor = 1.0;
-
-        if (yearsSinceOrigin >= 3 && yearsSinceOrigin < 5) {
-          discountFactor = 0.80;
-        } else if (yearsSinceOrigin >= 5) {
-          discountFactor = 0.70;
-        }
-
-        var penalty = economicLoss * discountFactor;
-
-        return Math.round(penalty);
-      }
-
-      // Calculate penalties for each fixed-rate track
-      var boiMarketRate = 3.8;
-      var totalPenalty = 0;
-      var daysSinceOrigin = Number(state.basic.yearsSinceOrigin) * 365.25;
-
-      state.tracks.forEach(function(track) {
-        if (track.type === 'fixed_non_linked' || track.type === 'fixed_linked') {
-          var penalty = calculatePrepaymentPenalty(track, daysSinceOrigin, boiMarketRate);
-          totalPenalty += penalty;
-        }
-      });
-
-      // Default costs (user can override)
-      var advisorFee = Number(state.costs.advisor) || 7000;
-      var bankFees = Number(state.costs.bankFees) || 3500;
-      var appraisalFee = (state.costs.appraisalRequired === true) ? 2500 : 0;
-
-      // Always recalculate penalty based on current track data unless the user supplied an override.
-      var customPenalty = totalPenalty;
-      var displayPenalty = (state.costs.prepaymentFee && Number(state.costs.prepaymentFee) > 0) ? Number(state.costs.prepaymentFee) : customPenalty;
-      var totalCosts = displayPenalty + advisorFee + bankFees + appraisalFee;
+      var cycleCosts = getCycleCostsSummary(state);
+      var customPenalty = cycleCosts.calculatedPenalty;
+      var displayPenalty = cycleCosts.displayPenalty;
+      var advisorFee = cycleCosts.advisorFee;
+      var bankFees = cycleCosts.bankFees;
+      var appraisalFee = cycleCosts.appraisalFee;
+      var totalCosts = cycleCosts.totalCosts;
 
       var tab3Html = '<div class="space-y-6"><section class="rounded-[32px] border border-line bg-white p-8 shadow-soft"><h2 class="text-3xl font-bold text-ink">שלב 3: עלויות מחזור משכנתה</h2><p class="mt-3 text-sm leading-7 text-slateText">סיכום כל העלויות הכרוכות בפירעון המשכנתה הקיימת ולקיחת משכנתה חדשה. ערכים מוערכים בחסר (שמרני).</p></section>';
 
       tab3Html += '<div class="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">';
 
-      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלת פירעון מוקדם</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(customPenalty) + '</p>';
-      if (customPenalty === totalPenalty && totalPenalty > 0) {
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלת פירעון מוקדם</p><p class="mt-2 text-2xl font-bold text-ink" data-role="cycle-penalty-card">' + App.Format.currency(customPenalty) + '</p>';
+      if (customPenalty > 0) {
         tab3Html += '<p class="mt-1 text-xs text-success">✓ מחושבת לפי NPV</p>';
       }
       tab3Html += '</div></div></div>';
 
-      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שכר טרחה (יועץ)</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(advisorFee) + '</p><p class="mt-1 text-xs text-slateText">משרה מקצועית</p></div></div></div>';
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שכר טרחה (יועץ)</p><p class="mt-2 text-2xl font-bold text-ink" data-role="cycle-advisor-card">' + App.Format.currency(advisorFee) + '</p><p class="mt-1 text-xs text-slateText">משרה מקצועית</p></div></div></div>';
 
-      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלות בנקאיות</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(bankFees) + '</p><p class="mt-1 text-xs text-slateText">רישום + טיפול</p></div></div></div>';
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">עמלות בנקאיות</p><p class="mt-2 text-2xl font-bold text-ink" data-role="cycle-bank-card">' + App.Format.currency(bankFees) + '</p><p class="mt-1 text-xs text-slateText">רישום + טיפול</p></div></div></div>';
 
-      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שמאות (אופציונלי)</p><p class="mt-2 text-2xl font-bold text-ink">' + App.Format.currency(appraisalFee) + '</p><p class="mt-1 text-xs text-slateText">' + (appraisalFee === 2500 ? '✓ נדרשת' : '—') + '</p></div></div></div>';
+      tab3Html += '<div class="rounded-[28px] border border-line bg-white p-6 shadow-soft"><div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-wide text-slateText">שמאות (אופציונלי)</p><p class="mt-2 text-2xl font-bold text-ink" data-role="cycle-appraisal-card">' + App.Format.currency(appraisalFee) + '</p><p class="mt-1 text-xs text-slateText" data-role="cycle-appraisal-state">' + (appraisalFee === 2500 ? '✓ נדרשת' : '—') + '</p></div></div></div>';
 
       tab3Html += '</div>';
 
@@ -478,7 +535,7 @@
 
       tab3Html += '</div></section>';
 
-      tab3Html += '<section class="rounded-[32px] border-2 border-brand-600 bg-brand-50 p-8 shadow-soft" data-testid="wizard-total-costs"><div class="flex items-baseline justify-between"><div><p class="text-sm font-semibold uppercase tracking-wide text-slateText">סה"כ עלויות מחזור</p><p class="mt-3 text-4xl font-bold text-brand-600" data-testid="wizard-total-costs-value">' + App.Format.currency(totalCosts) + '</p></div><div class="text-right"><p class="text-xs text-slateText mb-2">פירוט:</p><div class="space-y-1 text-sm"><div class="flex justify-between"><span>פירעון מוקדם:</span><span class="font-semibold">' + App.Format.currency(displayPenalty) + '</span></div><div class="flex justify-between"><span>יועץ:</span><span class="font-semibold">' + App.Format.currency(advisorFee) + '</span></div><div class="flex justify-between"><span>בנק:</span><span class="font-semibold">' + App.Format.currency(bankFees) + '</span></div>' + (appraisalFee > 0 ? '<div class="flex justify-between"><span>שמאות:</span><span class="font-semibold">' + App.Format.currency(appraisalFee) + '</span></div>' : '') + '</div></div></div></section>';
+      tab3Html += '<section class="rounded-[32px] border-2 border-brand-600 bg-brand-50 p-8 shadow-soft" data-testid="wizard-total-costs"><div class="flex items-baseline justify-between"><div><p class="text-sm font-semibold uppercase tracking-wide text-slateText">סה"כ עלויות מחזור</p><p class="mt-3 text-4xl font-bold text-brand-600" data-testid="wizard-total-costs-value">' + App.Format.currency(totalCosts) + '</p></div><div class="text-right"><p class="text-xs text-slateText mb-2">פירוט:</p><div class="space-y-1 text-sm"><div class="flex justify-between"><span>פירעון מוקדם:</span><span class="font-semibold" data-role="cycle-breakdown-penalty">' + App.Format.currency(displayPenalty) + '</span></div><div class="flex justify-between"><span>יועץ:</span><span class="font-semibold" data-role="cycle-breakdown-advisor">' + App.Format.currency(advisorFee) + '</span></div><div class="flex justify-between"><span>בנק:</span><span class="font-semibold" data-role="cycle-breakdown-bank">' + App.Format.currency(bankFees) + '</span></div><div class="flex justify-between' + (appraisalFee > 0 ? '' : ' hidden') + '" data-role="cycle-breakdown-appraisal-row"><span>שמאות:</span><span class="font-semibold" data-role="cycle-breakdown-appraisal">' + App.Format.currency(appraisalFee) + '</span></div></div></div></div></section>';
 
       tab3Html += infoNote("נתונים אלה משמשים לחישוב נקודת שיוויון (break-even) ודירוג חיסכון נטו.", "info");
 
@@ -606,7 +663,7 @@
 
     if (step === 2) {
       state.tracks.forEach(function (track, index) {
-        var normalizedTrack = normalizeTrack(track);
+        var normalizedTrack = normalizeTrack(track, index);
         if (!normalizedTrack.label || !normalizedTrack.type) {
           errors.push("מסלול " + (index + 1) + " חייב לכלול שם וסוג.");
         }
@@ -680,6 +737,8 @@
         var $field = $(this);
         var value = $field.attr("type") === "checkbox"
           ? $field.is(":checked")
+          : $field.data("format") === "integer"
+            ? parseFormattedNumber($field.val())
           : $field.attr("type") === "number"
             ? ($field.val() === "" ? "" : Number($field.val()))
             : $field.val();
@@ -728,6 +787,26 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
+    function refreshCycleCostsPreview() {
+      if (currentStep !== 3) {
+        return;
+      }
+
+      var cycleCosts = getCycleCostsSummary(wizardState);
+
+      $(root).find('[data-role="cycle-penalty-card"]').text(App.Format.currency(cycleCosts.calculatedPenalty));
+      $(root).find('[data-role="cycle-advisor-card"]').text(App.Format.currency(cycleCosts.advisorFee));
+      $(root).find('[data-role="cycle-bank-card"]').text(App.Format.currency(cycleCosts.bankFees));
+      $(root).find('[data-role="cycle-appraisal-card"]').text(App.Format.currency(cycleCosts.appraisalFee));
+      $(root).find('[data-role="cycle-appraisal-state"]').text(cycleCosts.appraisalFee === 2500 ? "✓ נדרשת" : "—");
+      $(root).find('[data-testid="wizard-total-costs-value"]').text(App.Format.currency(cycleCosts.totalCosts));
+      $(root).find('[data-role="cycle-breakdown-penalty"]').text(App.Format.currency(cycleCosts.displayPenalty));
+      $(root).find('[data-role="cycle-breakdown-advisor"]').text(App.Format.currency(cycleCosts.advisorFee));
+      $(root).find('[data-role="cycle-breakdown-bank"]').text(App.Format.currency(cycleCosts.bankFees));
+      $(root).find('[data-role="cycle-breakdown-appraisal"]').text(App.Format.currency(cycleCosts.appraisalFee));
+      $(root).find('[data-role="cycle-breakdown-appraisal-row"]').toggleClass("hidden", cycleCosts.appraisalFee === 0);
+    }
+
     function render(errors, successMessage) {
       var steps = stepDefinitions();
       var isFinalStep = currentStep === steps.length;
@@ -741,16 +820,6 @@
         '<section class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div class="text-sm text-slateText">שלב ' + currentStep + " מתוך " + steps.length + '</div><div class="wizard-actions">' + (currentStep > 1 ? '<button type="button" class="rounded-full border border-line px-5 py-3 text-sm font-semibold text-ink hover:border-brand-600 hover:text-brand-600" data-wizard-prev>חזרה</button>' : "") + (isFinalStep ? '<button type="button" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-wizard-submit' + (submitInProgress ? ' disabled="disabled"' : "") + '>יצירת חשבון ושמירת תוצאות</button>' : '<button type="button" class="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-soft hover:bg-brand-700" data-wizard-next>לשלב הבא</button>') + "</div></section>",
         "</section>"
       ].join("");
-
-      // Attach help bubble handlers
-      $(root).find("[data-help-bubble]").each(function () {
-        var $btn = $(this);
-        var tooltipText = $btn.data("help-bubble");
-        $btn.on("click", function (e) {
-          e.preventDefault();
-          alert(tooltipText);
-        });
-      });
     }
 
     render();
@@ -760,19 +829,26 @@
 
     $(root).on("change input", "[data-bind]", function () {
       syncInputs();
-      if ($(this).data("bind") === "account.email") {
+      var bind = $(this).data("bind");
+
+      if (bind === "account.email") {
         scheduleEmailCheck($(this).val());
       }
-      if ($(this).data("bind").indexOf("tracks.") === 0 && /\.type$/.test($(this).data("bind"))) {
+
+      if (bind.indexOf("tracks.") === 0 && /\.type$/.test(bind)) {
         render();
+        return;
       }
-      // Always re-render current tab when track data changes so penalties stay updated
-      if ($(this).data("bind").indexOf("tracks.") === 0 && /\.(outstandingBalance|currentRate|remainingTermMonths)$/.test($(this).data("bind"))) {
-        render();
+
+      if (currentStep === 3 && bind.indexOf("costs.") === 0) {
+        refreshCycleCostsPreview();
       }
-      if (currentStep === 3 && $(this).data("bind").indexOf("costs.") === 0) {
-        render();
-      }
+    });
+
+    $(root).on("blur change", '[data-format="integer"]', function () {
+      var parsedValue = parseFormattedNumber($(this).val());
+      $(this).val(formatIntegerInput(parsedValue));
+      syncInputs();
     });
 
     $(root).on("click", "[data-add-track]", function () {

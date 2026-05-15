@@ -29,7 +29,7 @@
     return [
       '<a href="' + App.Helpers.link("index.html") + '" class="flex items-center gap-3">',
       '  <span class="flex h-11 w-11 items-center justify-center rounded-2xl brand-chip text-lg font-extrabold shadow-soft">LM</span>',
-      '  <span class="block text-lg font-bold text-ink">' + t(isAdmin ? "Labib Admin" : "Labib Mortgage Monitor") + "</span>",
+      '  <span class="block text-lg font-bold text-ink">' + (isAdmin ? "ניהול המערכת" : "מוניטור משכנתא") + "</span>",
       "</a>"
     ].join("");
   }

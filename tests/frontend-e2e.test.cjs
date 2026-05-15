@@ -10,7 +10,7 @@ function resolvePlaywright() {
   try {
     return require("playwright");
   } catch (error) {
-    const bundled = path.join(
+    const bundledRoot = path.join(
       process.env.USERPROFILE || process.env.HOME || "",
       ".cache",
       "codex-runtimes",
@@ -18,9 +18,23 @@ function resolvePlaywright() {
       "dependencies",
       "node",
       "node_modules",
-      "playwright"
     );
-    return require(bundled);
+    const bundled = path.join(bundledRoot, "playwright");
+
+    try {
+      return require(bundled);
+    } catch (bundledError) {
+      const pnpmRoot = path.join(bundledRoot, ".pnpm");
+      const playwrightEntry = fs.existsSync(pnpmRoot)
+        ? fs.readdirSync(pnpmRoot).find((entry) => entry.indexOf("playwright@") === 0)
+        : null;
+
+      if (!playwrightEntry) {
+        throw bundledError;
+      }
+
+      return require(path.join(pnpmRoot, playwrightEntry, "node_modules", "playwright"));
+    }
   }
 }
 
@@ -56,7 +70,7 @@ async function getFreePort() {
 }
 
 async function waitForUrl(url, label) {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       const response = await fetch(url);
       if (response.ok || response.status < 500) {
@@ -113,13 +127,12 @@ async function goToWizardStepThree(page) {
   await page.waitForTimeout(250);
 
   const tracks = [
-    { label: "Fixed A", balance: "420000", rate: "4.5", months: "240" },
-    { label: "Fixed B", balance: "280000", rate: "4.1", months: "180" },
-    { label: "Fixed C", balance: "190000", rate: "3.8", months: "120" },
+    { balance: "420000", rate: "4.5", months: "240" },
+    { balance: "280000", rate: "4.1", months: "180" },
+    { balance: "190000", rate: "3.8", months: "120" },
   ];
 
   for (const [index, track] of tracks.entries()) {
-    await page.fill(`[data-bind="tracks.${index}.label"]`, track.label);
     await page.selectOption(`[data-bind="tracks.${index}.type"]`, "fixed_non_linked");
     await page.waitForTimeout(100);
     await page.fill(`[data-bind="tracks.${index}.outstandingBalance"]`, track.balance);
@@ -238,7 +251,7 @@ before(async () => {
     frontendLogs += text;
   });
 
-  backendProcess = spawn(pythonExe, ["-m", "uvicorn", "backend.app.main:app", "--port", String(backendPort)], {
+  backendProcess = spawn(pythonExe, ["-u", "-m", "uvicorn", "backend.app.main:app", "--port", String(backendPort)], {
     cwd: repoRoot,
     env: {
       ...process.env,
